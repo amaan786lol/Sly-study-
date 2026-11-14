@@ -59,6 +59,7 @@ p{margin:0;color:var(--muted);line-height:1.5;font-size:15px;max-width:42ch}
 .row.dim{opacity:.5}
 .tag{font:400 13px var(--f-display);letter-spacing:.4px}
 .buy{pointer-events:auto;font:400 15px var(--f-display);color:#04121f;background:var(--gold);border:0;border-radius:9px;padding:8px 12px;cursor:pointer;min-width:84px;font-variant-numeric:tabular-nums}
+.buy.ghost{background:#ffffff1a;color:var(--foam)}
 .buy[disabled]{background:#ffffff22;color:var(--muted);cursor:default}
 button.go{pointer-events:auto;font:400 22px var(--f-display);letter-spacing:.5px;color:#04121f;background:var(--gold);border:0;border-radius:14px;padding:14px 34px;cursor:pointer;box-shadow:0 5px 0 #b8892a}
 button.go:active{transform:translateY(3px);box-shadow:0 2px 0 #b8892a}
@@ -128,21 +129,34 @@ const UPS={
  slots:{name:"Base Expansion",desc:"One more pedestal in your base",     max:6,cost:l=>Math.round(250*2.5**l)},
  squad:{name:"Squad Whistle", desc:"Bring one more fighter fish per run",max:2,cost:l=>800*4**l}
 };
+const TOOLS={
+ spear:{name:"Spear",what:"Dash into Mother to stab her. Dash into Snapjaw to stun him.",tiers:[
+  {n:"Wooden Spear",dmg:2,cost:400,req:0,c:"#a0703a"},{n:"Iron Spear",dmg:4,cost:2500,req:1,c:"#9aa5ad"},{n:"Steel Spear",dmg:7,cost:12000,req:2,c:"#d9e2ea"},
+  {n:"Coral Lance",dmg:11,cost:50000,req:3,c:"#ff7aa2"},{n:"Abyss Trident",dmg:18,cost:200000,req:4,c:"#c59bff"}]},
+ net:{name:"Egg Net",what:"Grab eggs from farther away.",tiers:[{n:"Rope Net",reach:10,cost:300,req:0},{n:"Wide Net",reach:20,cost:2000,req:1},{n:"Steel Net",reach:32,cost:10000,req:3}]},
+ lantern:{name:"Lantern",what:"Your headlamp reaches farther in dark water.",tiers:[{n:"Oil Lantern",cost:1500,req:2},{n:"Glow Lantern",cost:9000,req:3},{n:"Sun Lantern",cost:40000,req:4}]}
+};
+const MAXLV=10;
+const lv=it=>it.lvl||1;
+const gearCost=it=>Math.round(EGGS[it.t].rate*40*1.8**(lv(it)-1));
+const fishDmg=it=>Math.round(FISH[it.t].dmg*(1+.35*(lv(it)-1))*10)/10;
+const spearT=()=>SV.tools.spear?TOOLS.spear.tiers[SV.tools.spear-1]:null;
+const netReach=()=>SV.tools.net?TOOLS.net.tiers[SV.tools.net-1].reach:0;
 const RESTOCK=45000;
 
 /* ================= save ================= */
 const KEY="mothersReefSave3";
-function fresh(){return{coins:0,vault:0,unlocked:0,best:0,up:{speed:0,dash:0,shield:0,slots:0,squad:0},base:[],rival:[0,0,0],restock:[0,0,0],last:Date.now(),seen:false}}
+function fresh(){return{coins:0,vault:0,unlocked:0,best:0,up:{speed:0,dash:0,shield:0,slots:0,squad:0},tools:{spear:0,net:0,lantern:0},base:[],rival:[0,0,0],restock:[0,0,0],last:Date.now(),seen:false}}
 let SV=fresh();
 try{let r=JSON.parse(localStorage.getItem(KEY)||"null");
   if(!r){const o=JSON.parse(localStorage.getItem("mothersReefSave2")||"null");if(o){r=o;r.base=(o.base||[]).map(t=>({t,at:Date.now()+HATCH[t]*1000,fish:null}))}}
-  if(r)SV=Object.assign(fresh(),r,{up:Object.assign(fresh().up,r.up||{})})}catch(e){}
+  if(r)SV=Object.assign(fresh(),r,{up:Object.assign(fresh().up,r.up||{}),tools:Object.assign(fresh().tools,r.tools||{})})}catch(e){}
 function persist(){SV.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(SV))}catch(e){}}
 const slots=()=>4+SV.up.slots;
-const itemRate=it=>EGGS[it.t].rate*(it.fish==="earn"?3:it.fish==="fight"?1.5:1);
-const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0);
+const itemRate=it=>EGGS[it.t].rate*(it.fish==="earn"?3:it.fish==="fight"?1.5:1)*(1+.3*(lv(it)-1));
+const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0)+(lv(it)-1)*.2;
 const rate=()=>SV.base.reduce((a,it)=>a+itemRate(it),0);
-const squad=()=>SV.base.filter(f=>f.fish==="fight").sort((a,b)=>b.t-a.t).slice(0,1+SV.up.squad);
+const squad=()=>SV.base.filter(f=>f.fish==="fight").sort((a,b)=>fishDmg(b)-fishDmg(a)).slice(0,1+SV.up.squad);
 let offline=0;{const el=Math.min(7200,Math.max(0,(Date.now()-SV.last)/1000));offline=Math.floor(rate()*el);SV.vault+=offline}
 const fmt=n=>{n=Math.floor(n);return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1)+"M":n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+"k":n.toLocaleString()};
 const mmss=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
@@ -173,7 +187,7 @@ const sfx={grab:()=>tone(660,.12,"triangle",.12,1.6),gold:()=>{tone(880,.1,"tria
  warn:()=>tone(110,.6,"sawtooth",.08,.7),chomp:()=>{tone(180,.35,"square",.18,.3);tone(70,.6,"sawtooth",.15,.5)},dash:()=>tone(300,.15,"sine",.08,2),
  coin:()=>{tone(988,.08,"square",.06);setTimeout(()=>tone(1319,.14,"square",.06),70)},buy:()=>{[523,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.15,"triangle",.1),i*70))},
  egg:()=>tone(400,.2,"triangle",.12,2),snap:()=>{tone(220,.1,"square",.15,.5);setTimeout(()=>tone(160,.15,"square",.15,.5),90)},
- hit:()=>tone(140+Math.random()*60,.09,"square",.07,.6),hatch:()=>{[392,523,659].forEach((f,i)=>setTimeout(()=>tone(f,.18,"triangle",.1,1.2),i*90))},
+ hit:()=>tone(140+Math.random()*60,.09,"square",.07,.6),clang:()=>{tone(1200,.25,"triangle",.1,.98);tone(1800,.18,"sine",.06,.97)},hatch:()=>{[392,523,659].forEach((f,i)=>setTimeout(()=>tone(f,.18,"triangle",.1,1.2),i*90))},
  whoosh:()=>tone(90,.8,"sine",.15,3),win:()=>[523,659,784,1046,1319].forEach((f,i)=>setTimeout(()=>tone(f,.3,"triangle",.12),i*100)),
  clear:()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.25,"triangle",.12),i*110))};
 document.querySelectorAll(".mute").forEach(b=>b.onclick=()=>{muted=!muted;document.querySelectorAll(".mute").forEach(x=>x.textContent=muted?"Sound off":"Sound on")});
@@ -267,7 +281,8 @@ function layout(){const land=W>=H*0.95;const top=SURF*.4;
     LY={land,isl,
       base:{x:isl.x+isl.w*.04,y:isl.y+isl.h*.1,w:isl.w*.3,h:isl.h*.72},
       rival:{x:isl.x+isl.w*.66,y:isl.y+isl.h*.1,w:isl.w*.3,h:isl.h*.72},
-      shop:{x:W/2,y:isl.y+isl.h*.25,r:Math.min(46,W*.05)},
+      shop:{x:W/2-isl.w*.075,y:isl.y+isl.h*.24,r:Math.min(38,W*.04)},
+      forge:{x:W/2+isl.w*.075,y:isl.y+isl.h*.24,r:Math.min(38,W*.04)},
       dock:{x:W/2,y:isl.y+isl.h*.86,r:34},
       spawn:{x:W/2,y:isl.y+isl.h*.6}};
     LY.collect={x:LY.base.x+LY.base.w+30,y:LY.base.y+LY.base.h/2,r:24};
@@ -275,9 +290,10 @@ function layout(){const land=W>=H*0.95;const top=SURF*.4;
     LY={land,isl,
       base:{x:isl.x+isl.w*.05,y:isl.y+isl.h*.04,w:isl.w*.9,h:isl.h*.3},
       rival:{x:isl.x+isl.w*.05,y:isl.y+isl.h*.64,w:isl.w*.9,h:isl.h*.32},
-      shop:{x:isl.x+isl.w*.2,y:isl.y+isl.h*.49,r:36},
-      dock:{x:isl.x+isl.w*.8,y:isl.y+isl.h*.49,r:32},
-      spawn:{x:W/2,y:isl.y+isl.h*.49}};
+      shop:{x:isl.x+isl.w*.2,y:isl.y+isl.h*.47,r:34},
+      forge:{x:W/2,y:isl.y+isl.h*.565,r:30},
+      dock:{x:isl.x+isl.w*.8,y:isl.y+isl.h*.47,r:32},
+      spawn:{x:W/2,y:isl.y+isl.h*.455}};
     LY.collect={x:W/2,y:LY.base.y+LY.base.h+28,r:22};}
   const b=LY.base,cols=LY.land?2:5,rows=LY.land?5:2;LY.peds=[];
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)LY.peds.push({x:b.x+b.w*(c+.5)/cols,y:b.y+20+(b.h-24)*(r+.5)/rows});
@@ -287,7 +303,11 @@ const lStatic=new THREE.Group(),lDyn=new THREE.Group();lScene.add(lStatic,lDyn);
 lScene.background=col("#7fd3e6");lScene.fog=new THREE.Fog("#7fd3e6",1500,5000);
 const hemi=new THREE.HemisphereLight("#ffffff","#3a6a7a",.55);lScene.add(hemi);
 const sun=new THREE.DirectionalLight("#fff3dd",.75);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);lScene.add(sun,sun.target);
-let walker,crabM,pedSlots=[],rivalSlots=[],carrySlotL,ring,pedMeshes=[],water;
+let walker,crabM,pedSlots=[],rivalSlots=[],carrySlotL,ring,pedMeshes=[],water,forgeFire,forgeLight,walkerSpear;
+function makeSpear(t,len=46){const g=new THREE.Group(),c=TOOLS.spear.tiers[t-1].c;
+  const sh=mesh(new THREE.CylinderGeometry(1.3,1.3,len,6),mat(t===1?"#8a5a3b":"#5a4a3a"));sh.rotation.z=Math.PI/2;g.add(sh);
+  const tip=mesh(new THREE.ConeGeometry(3.2,11,6),mat(c,{metalness:.7,roughness:.25,emissive:col(c),emissiveIntensity:t>=4?.5:.1}));tip.rotation.z=-Math.PI/2;tip.position.x=len/2+5;g.add(tip);
+  if(t===5)[-1,1].forEach(s=>{const p=mesh(new THREE.ConeGeometry(2,8,5),tip.material);p.rotation.z=-Math.PI/2;p.position.set(len/2+1,s*4,0);g.add(p)});return g}
 function roundRectShape(x,z,w,h,r){const s=new THREE.Shape();const y=-z,hh=-h;
   s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.quadraticCurveTo(x+w,y,x+w,y-r);s.lineTo(x+w,y+hh+r);s.quadraticCurveTo(x+w,y+hh,x+w-r,y+hh);
   s.lineTo(x+r,y+hh);s.quadraticCurveTo(x,y+hh,x,y+hh+r);s.lineTo(x,y-r);s.quadraticCurveTo(x,y,x+r,y);return s}
@@ -317,6 +337,16 @@ function buildLobby(){clearGroup(lStatic);clearGroup(lDyn);const I=LY.isl;
   const door=mesh(new THREE.BoxGeometry(s.r*.45,s.r*.75,2),mat("#3a2a20"));door.position.set(0,s.r*.38,s.r*.76);hut.add(door);
   const sign=mesh(new THREE.BoxGeometry(s.r*1.2,s.r*.3,2),mat("#ffd166",{emissive:col("#ffd166"),emissiveIntensity:.2}));sign.position.set(0,s.r*.95,s.r*.77);hut.add(sign);
   hut.position.copy(Lo(s.x,s.y,2));lStatic.add(hut);
+  const f=LY.forge,fg=new THREE.Group(),stone=mat("#7c7f86",{roughness:.9}),dark=mat("#3a3d44",{roughness:.9});
+  const fb=mesh(new THREE.BoxGeometry(f.r*2,f.r*1.2,f.r*1.5),stone,true);fb.position.y=f.r*.6;fg.add(fb);
+  const fr=mesh(new THREE.BoxGeometry(f.r*2.3,f.r*.25,f.r*1.8),dark,true);fr.position.y=f.r*1.3;fg.add(fr);
+  const chim=mesh(new THREE.BoxGeometry(f.r*.45,f.r*1.1,f.r*.45),dark,true);chim.position.set(f.r*.55,f.r*1.85,-f.r*.3);fg.add(chim);
+  const mouthB=mesh(new THREE.BoxGeometry(f.r*.9,f.r*.6,2),mat("#1a0c06"));mouthB.position.set(0,f.r*.45,f.r*.76);fg.add(mouthB);
+  forgeFire=mesh(SPH,mat("#ff7a1a",{emissive:col("#ff5a00"),emissiveIntensity:1.4}));forgeFire.scale.set(f.r*.35,f.r*.22,4);forgeFire.position.set(0,f.r*.35,f.r*.75);fg.add(forgeFire);
+  forgeLight=new THREE.PointLight("#ff8a3a",1.2,f.r*6,1.5);forgeLight.position.set(0,f.r*.6,f.r*1.4);fg.add(forgeLight);
+  const anv=new THREE.Group();const ab=mesh(new THREE.BoxGeometry(14,8,8),dark,true);ab.position.y=12;anv.add(ab);const ah=mesh(new THREE.ConeGeometry(4,10,4),dark,true);ah.rotation.z=-Math.PI/2;ah.position.set(11,13,0);anv.add(ah);
+  const ast=mesh(new THREE.BoxGeometry(7,8,6),dark,true);ast.position.y=4;anv.add(ast);anv.position.set(-f.r*1.25,0,f.r*1.1);fg.add(anv);
+  fg.position.copy(Lo(f.x,f.y,2));lStatic.add(fg);
   const d=LY.dock,plank=mat("#8a5a3b"),dk=new THREE.Group();
   if(LY.land){const len=H-d.y+200;for(let i=0;i<len/12;i++){const p=mesh(new THREE.BoxGeometry(50,4,10),plank,true);p.position.copy(Lo(d.x,d.y+i*12,1));dk.add(p)}
     for(let i=1;i<6;i++)[-1,1].forEach(sd=>{const p=mesh(new THREE.CylinderGeometry(3,3,24,6),mat("#6b4a2a"),true);p.position.copy(Lo(d.x+sd*26,d.y+i*40,-4));dk.add(p)})}
@@ -327,7 +357,7 @@ function buildLobby(){clearGroup(lStatic);clearGroup(lDyn);const I=LY.isl;
   pedMeshes=LY.peds.map(p=>{const m=mesh(new THREE.CylinderGeometry(15,17,10,20),mat("#c9b48a"),true);m.position.copy(Lo(p.x,p.y,8));lStatic.add(m);return m});
   LY.rpeds.forEach(p=>{const m=mesh(new THREE.CylinderGeometry(17,19,10,20),mat("#8a6a4a"),true);m.position.copy(Lo(p.x,p.y,8));lStatic.add(m)});
   [[I.x+30,I.y+I.h-30,1],[I.x+I.w-30,I.y+30,1.1],[I.x+30,I.y+30,.8],[I.x+I.w-34,I.y+I.h-34,.9]].forEach(([x,y,s])=>lStatic.add(palm(x,y,s)));
-  walker=makeWalker();lDyn.add(walker.g);crabM=makeCrab();lDyn.add(crabM.g);
+  walker=makeWalker();lDyn.add(walker.g);walkerSpear=new Slot(walker.g);crabM=makeCrab();lDyn.add(crabM.g);
   pedSlots=LY.peds.map(()=>{const g=new THREE.Group();lDyn.add(g);return new Slot(g)});
   rivalSlots=LY.rpeds.map(()=>{const g=new THREE.Group();lDyn.add(g);return new Slot(g)});
   const cg=new THREE.Group();lDyn.add(cg);carrySlotL=new Slot(cg);
@@ -387,9 +417,11 @@ function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dar
   momM=makeMother(!!s.boss);momM.g.scale.setScalar(mom.r*2.4/100);momM.g.visible=false;dDyn.add(momM.g);
   if(G.stage>=4&&!s.boss)momM.body.material.color.set("#2b3a4f");
   const cg=new THREE.Group();dDyn.add(cg);carrySlotD=new Slot(cg);
-  comp.forEach(c=>{c.f=makeFish(30+c.t*3,EGGS[c.t].col,{brow:true,band:true,glow:.1+s.dark*.4});dDyn.add(c.f.g)});
+  comp.forEach(c=>{c.f=makeFish(30+c.t*3+c.lvl,EGGS[c.t].col,{brow:true,band:true,glow:.1+s.dark*.4});dDyn.add(c.f.g)});
   dAmb.intensity=.25+.5*dk;dSun.intensity=.15+.85*dk;dAmb.color.set(s.top);
-  diverM.lamp.intensity=s.dark*2.2;diveBuilt=true}
+  diverM.lamp.intensity=s.dark*(2.2+SV.tools.lantern*.9);diverM.lamp.distance=420+SV.tools.lantern*170;
+  if(SV.tools.spear){const sp=makeSpear(SV.tools.spear,40);sp.position.set(4,-8,6);diverM.inner.add(sp)}
+  diveBuilt=true}
 
 /* ================= helpers ================= */
 const inRect=(p,r)=>p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h;
@@ -430,6 +462,7 @@ function titleScreen(){G.mode="title";setView("lobby");$("hudLobby").hidden=true
    <div class="row"><span><span class="t">Dive runs</span><br><span class="d">Start in the Shallows and push deeper one stage at a time. Surface to keep your loot. Get eaten and you lose the whole run.</span></span><span class="whirl tag">run</span></div>
    <div class="row"><span><span class="t">Hatching</span><br><span class="d">Eggs in your base hatch into fish. Some earn triple coins. Others are fighters.</span></span><span class="good tag">hatch</span></div>
    <div class="row"><span><span class="t">Fighters</span><br><span class="d">Your best fighters follow you on runs and bite Mother. Beat her HP to drive her off. Two stages have bosses.</span></span><span class="bad tag">fight</span></div>
+   <div class="row"><span><span class="t">Forge</span><br><span class="d">The blacksmith makes spears, nets and lanterns for you, and gear that levels up your fish.</span></span><span class="tag" style="color:#ffb07a">craft</span></div>
    <div class="row"><span><span class="t">Snapjaw's Nest</span><br><span class="d">A crab guards three eggs on the island. Grab one and run it home.</span></span><span class="goldt tag">raid</span></div>
   </div>
   <div class="keys">Move: <kbd>mouse</kbd> / <kbd>WASD</kbd> / drag &nbsp; Dash: <kbd>Space</kbd> or <kbd>click</kbd></div>
@@ -442,12 +475,30 @@ function shopMenu(){G.mode="menu";
   show(`<div class="eyebrow">Shop</div><h2>Gear Shack</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins.</p><div class="list">${rows}</div>`,
    [{label:"Done",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
   $("card").querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{const k=b.dataset.up,c=UPS[k].cost(SV.up[k]);if(SV.coins>=c&&SV.up[k]<UPS[k].max){SV.coins-=c;SV.up[k]++;sfx.buy();persist();updLobbyHud();shopMenu()}})}
+function forgeMenu(tab){G.mode="menu";let body="";
+  if(tab==="tools"){body=Object.entries(TOOLS).map(([k,T])=>{const cur=SV.tools[k],nx=T.tiers[cur],have=cur?T.tiers[cur-1].n:"None yet";
+      const locked=nx&&SV.best<nx.req;
+      const fx=nx?(k==="spear"?`${nx.dmg} damage per stab`:k==="net"?`+${nx.reach} grab reach`:`lights ${420+(cur+1)*170} far`):"";
+      return `<div class="row"><span><span class="t">${T.name}</span> <span class="pips">${"●".repeat(cur)}${"○".repeat(T.tiers.length-cur)}</span><br><span class="d">${T.what}</span><br><span class="d">Have: <b style="color:var(--foam)">${have}</b>${nx?` · Next: ${nx.n} (${fx})`:""}</span></span>
+      <button class="buy" data-tool="${k}" type="button" ${!nx||locked||SV.coins<nx.cost?"disabled":""}>${!nx?"Max":locked?`Reach stage ${nx.req+1}`:fmt(nx.cost)}</button></div>`}).join("")}
+  else{const list=SV.base.map((it,i)=>({it,i}));
+    body=list.length?list.map(({it,i})=>{if(!it.fish)return `<div class="row dim"><span><span class="t" style="color:${EGGS[it.t].col}">${EGGS[it.t].name}</span><br><span class="d">Still an egg. Hatches in ${mmss((it.at-Date.now())/1000)}</span></span><span></span></div>`;
+      const max=lv(it)>=MAXLV,c=gearCost(it),fight=it.fish==="fight";
+      const now=fight?`${fishDmg(it)} dmg`:`${fmt(itemRate(it))}/s`,next=fight?`${fishDmg({...it,lvl:lv(it)+1})} dmg`:`${fmt(itemRate({...it,lvl:lv(it)+1}))}/s`;
+      return `<div class="row"><span><span class="t" style="color:${EGGS[it.t].col}">${FISH[it.t].name}</span> <span class="d">Lv${lv(it)} ${fight?"fighter":"earner"}</span><br><span class="d">${fight?"Iron fangs":"Gold scales"}: ${now}${max?"":` → ${next}`}</span></span>
+      <button class="buy" data-fish="${i}" type="button" ${max||SV.coins<c?"disabled":""}>${max?"Max":fmt(c)}</button></div>`}).join(""):`<div class="row"><span class="d">No fish yet. Bring eggs home and let them hatch.</span><span></span></div>`}
+  show(`<div class="eyebrow">Forge</div><h2>Old Barnacle's Forge</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins.</p>
+   <div class="stats" style="grid-template-columns:1fr 1fr"><button class="buy ${tab==="tools"?"":"ghost"}" data-tab="tools" type="button" aria-pressed="${tab==="tools"}">Your tools</button><button class="buy ${tab==="fish"?"":"ghost"}" data-tab="fish" type="button" aria-pressed="${tab==="fish"}">Fish gear</button></div>
+   <div class="list">${body}</div>`,[{label:"Done",fn:closeMenu}]);
+  $("card").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>forgeMenu(b.dataset.tab));
+  $("card").querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{const k=b.dataset.tool,nx=TOOLS[k].tiers[SV.tools[k]];if(nx&&SV.best>=nx.req&&SV.coins>=nx.cost){SV.coins-=nx.cost;SV.tools[k]++;sfx.clang();toast(`Forged: ${nx.n}`,"#ffb07a");persist();updLobbyHud();forgeMenu("tools")}});
+  $("card").querySelectorAll("[data-fish]").forEach(b=>b.onclick=()=>{const it=SV.base[+b.dataset.fish],c=gearCost(it);if(it&&lv(it)<MAXLV&&SV.coins>=c){SV.coins-=c;it.lvl=lv(it)+1;sfx.clang();persist();updLobbyHud();forgeMenu("fish")}})}
 function resetAsk(){show(`<div class="eyebrow bad">Reset</div><h2>Wipe your save?</h2><p>All coins, eggs, fish and gear will be gone.</p>`,
   [{label:"Keep my save",fn:shopMenu},{label:"Yes, wipe it",cls:"link",fn:()=>{SV=fresh();SV.seen=true;restockRival();persist();enterLobby()}}])}
 function dockMenu(){G.mode="menu";const sq=squad();
   const rows=STAGES.map((s,i)=>`<div class="row ${i<=SV.best+1?"":"dim"}"><span><span class="t">${i+1}. ${s.name}</span> <span class="d">${s.depth}</span><br><span class="d">Grab ${s.quota} eggs · ${s.value} each · nest: <span style="color:${EGGS[i].col}">${EGGS[i].name}</span></span></span>
     <span class="tag ${s.boss?"bad":"d"}">${s.boss?"BOSS":i<=SV.best?"reached":"—"}</span></div>`).join("");
-  const sqRows=sq.length?sq.map(f=>`<div class="row"><span><span class="t" style="color:${EGGS[f.t].col}">${FISH[f.t].name}</span><br><span class="d">Bites for ${FISH[f.t].dmg} damage</span></span><span class="tag bad">fighter</span></div>`).join("")
+  const sqRows=sq.length?sq.map(f=>`<div class="row"><span><span class="t" style="color:${EGGS[f.t].col}">${FISH[f.t].name}</span><br><span class="d">Lv${lv(f)} · bites for ${fishDmg(f)} damage</span></span><span class="tag bad">fighter</span></div>`).join("")
     :`<div class="row"><span class="d">No fighters yet. About half of your eggs hatch into fighters. Without them you can only dodge Mother.</span><span></span></div>`;
   show(`<div class="eyebrow">Dive Dock</div><h2>Start a run</h2><p>Every run starts in the Shallows. After each stage, surface at the boat to bank your loot or take the whirlpool deeper.</p>
    <div class="list">${rows}</div><h3>Your squad (${sq.length}/${1+SV.up.squad})</h3><div class="list">${sqRows}</div>`,
@@ -461,7 +512,7 @@ function spawnBaby(edge){const s=S();const gold=Math.random()<.12;let x,y;
   attachBaby(b);return b}
 function placePortal(){portal={x:nest.x<W/2?W*.84:W*.16,y:H-80}}
 function startRun(){RUN={haul:0,eggs:[],bosses:0,drove:0};G.lives=1+SV.up.shield;
-  comp=squad().map((it,i)=>({t:it.t,x:W/2,y:SURF+60,vx:0,vy:0,cd:0,ph:rand(0,6),i}));
+  comp=squad().map((it,i)=>({t:it.t,dmg:fishDmg(it),lvl:lv(it),x:W/2,y:SURF+60,vx:0,vy:0,cd:0,ph:rand(0,6),i}));
   G.stage=0;startStage()}
 function startStage(){const s=S();
   Object.assign(P,{x:W/2,y:SURF+90,vx:0,vy:0,a:Math.PI/2,dash:0,cd:0,inv:1.5,carry:null});
@@ -488,7 +539,7 @@ function movePlayer(dt,maxS,bx0,by0,bx1,by1){let ax=0,ay=0;
   const sp=Math.hypot(P.vx,P.vy);if(sp>20)P.a=Math.atan2(P.vy,P.vx);P.kick+=dt*(2+sp/30);
   P.dash=Math.max(0,P.dash-dt);P.cd=Math.max(0,P.cd-dt);P.inv=Math.max(0,P.inv-dt);return sp}
 
-function hitMom(dmg,c){if(mom.gone||mom.hp<=0)return;mom.hp-=dmg;mom.stun=.25;sfx.hit();spark(c.x,c.y,EGGS[c.t].col,6);
+function hitMom(dmg,c){if(mom.gone||mom.hp<=0)return;mom.hp-=dmg;mom.stun=.25;sfx.hit();spark(c.x,c.y,c.col||EGGS[c.t].col,6);
   if(mom.hp<=0){mom.hp=0;const s=S();const bonus=s.value*(mom.boss?30:8);RUN.haul+=bonus;RUN.drove++;
     if(mom.boss){RUN.bosses++;RUN.eggs.push(G.stage);sfx.win();toast(`${s.boss} defeated! +${fmt(bonus)} and a bonus ${EGGS[G.stage].name}`,"#ffd166")}
     else{sfx.clear();toast(`You drove her off! +${fmt(bonus)}`,"#7fe0a8")}
@@ -496,7 +547,7 @@ function hitMom(dmg,c){if(mom.gone||mom.hp<=0)return;mom.hp-=dmg;mom.stun=.25;sf
 function updateComp(dt){const hunting=mom.state==="hunt"&&!mom.gone&&mom.x>-60&&mom.x<W+60&&mom.y<H+60;
   comp.forEach((c,i)=>{c.ph+=dt*10;c.cd-=dt;let tx,ty,spd=300;const a=i*2.1+G.t*1.6;
     if(hunting&&Math.hypot(mom.x-P.x,mom.y-P.y)<380){tx=mom.x+Math.cos(a*2)*mom.r*.35;ty=mom.y+Math.sin(a*2)*mom.r*.25;spd=430;
-      if(Math.hypot(c.x-mom.x,c.y-mom.y)<mom.r*.95&&c.cd<=0){c.cd=.7;hitMom(FISH[c.t].dmg,c)}}
+      if(Math.hypot(c.x-mom.x,c.y-mom.y)<mom.r*.95&&c.cd<=0){c.cd=.7;hitMom(c.dmg,c)}}
     else{tx=P.x+Math.cos(a)*46;ty=P.y+Math.sin(a)*32}
     const dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy)||1,v=Math.min(spd,d*5);
     c.vx+=(dx/d*v-c.vx)*Math.min(1,6*dt);c.vy+=(dy/d*v-c.vy)*Math.min(1,6*dt);c.x+=c.vx*dt;c.y+=c.vy*dt;
@@ -509,11 +560,11 @@ function updateDive(dt){const s=S();G.t+=dt;
     if(s.flee&&d<s.flee){const f=(1-d/s.flee)*b.spd*1.4;tx+=dx/d*f;ty+=dy/d*f;b.a=Math.atan2(ty,tx)}
     if(b.x<30)tx+=80;if(b.x>W-30)tx-=80;if(b.y<SURF+50)ty+=80;if(b.y>H-50)ty-=80;
     b.vx+=(tx-b.vx)*Math.min(1,3*dt);b.vy+=(ty-b.vy)*Math.min(1,3*dt);b.x+=b.vx*dt;b.y+=b.vy*dt;
-    if(d<b.r+18){b.dead=1;G.count++;if(b.gold){G.gold++;RUN.haul+=s.value*3;sfx.gold();spark(b.x,b.y,"#ffd166")}else{RUN.haul+=s.value;sfx.grab();spark(b.x,b.y,EGGS[G.stage].col)}
+    if(d<b.r+18+netReach()){b.dead=1;G.count++;if(b.gold){G.gold++;RUN.haul+=s.value*3;sfx.gold();spark(b.x,b.y,"#ffd166")}else{RUN.haul+=s.value;sfx.grab();spark(b.x,b.y,EGGS[G.stage].col)}
       if(mom.state==="away"&&!mom.gone)mom.t=Math.max(.3,mom.t-1);
       if(G.count===s.quota)toast(G.stage<5?"Quota met! Boat = keep loot · Whirlpool = go deeper":"Quota met! Swim up to the boat","#7fe0a8");updHud()}}
   babies=babies.filter(b=>{if(b.dead)babyG.remove(b.f.g);return !b.dead});while(babies.length<s.babies)babies.push(spawnBaby(true));
-  if(G.egg==="nest"&&Math.hypot(P.x-nest.x,P.y-(nest.y-12))<32){G.egg="carried";sfx.egg();spark(nest.x,nest.y-12,EGGS[G.stage].col);
+  if(G.egg==="nest"&&Math.hypot(P.x-nest.x,P.y-(nest.y-12))<32+netReach()){G.egg="carried";sfx.egg();spark(nest.x,nest.y-12,EGGS[G.stage].col);
     if(!mom.gone){toast("You took her egg! RUN","#ff3b5c");mom.enraged=true;if(mom.state==="away"){mom.t=0}else if(mom.state==="leave"){mom.state="hunt";mom.t=s.hunt}else if(mom.state==="hunt")mom.t+=3}
     else toast("Her egg is yours","#7fe0a8");updHud()}
   updateMom(dt,s);if(G.mode!=="dive")return;
@@ -542,6 +593,8 @@ function updateMom(dt,s){mom.ph+=dt*(mom.state==="hunt"?7:4);mom.t-=dt;mom.stun=
     mom.a=Math.atan2(mom.vy,mom.vx);
     const hx=mom.x+Math.cos(mom.a)*mom.r*.55,hy=mom.y+Math.sin(mom.a)*mom.r*.55,hd=Math.hypot(P.x-hx,P.y-hy);
     mom.mouth+=((mom.state==="hunt"&&hd<220?1:0)-mom.mouth)*Math.min(1,6*dt);
+    const st=spearT();P.hitCd=Math.max(0,(P.hitCd||0)-dt);
+    if(st&&P.dash>0&&P.hitCd<=0&&!mom.gone&&mom.state==="hunt"&&Math.hypot(P.x-mom.x,P.y-mom.y)<mom.r*.95){P.hitCd=.35;P.inv=Math.max(P.inv,.6);sfx.clang();hitMom(st.dmg,{x:P.x,y:P.y,col:st.c});P.vx*=-.5;P.vy*=-.5;shake=Math.max(shake,.25)}
     if(mom.state==="hunt"&&P.inv<=0&&hd<mom.r*.55+12)bitten()}}
 function stepParts(dt){for(const p of parts){p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.kind==="s"){p.vx*=.92;p.vy*=.92}if(p.kind==="b"&&view==="dive"&&p.y<SURF)p.t=p.life}
   parts=parts.filter(p=>p.t<p.life);shake=Math.max(0,shake-dt*2);flash=Math.max(0,flash-dt*2)}
@@ -564,13 +617,15 @@ function surfaceRun(){leaveStage();G.mode="menu";sfx.clear();const r=RUN;SV.coin
 function updateLobby(dt){const I=LY.isl;const carrying=P.carry!=null;
   movePlayer(dt,pSpeed()*(carrying?.78:1),I.x+14,I.y+14,I.x+I.w-14,I.y+I.h-14);
   restockRival();
-  let pad=null;if(near(P,LY.shop,LY.shop.r+10))pad="shop";else if(near(P,LY.dock,LY.dock.r+6))pad="dock";else if(near(P,LY.collect,LY.collect.r+6))pad="collect";
+  let pad=null;if(near(P,LY.shop,LY.shop.r+10))pad="shop";else if(near(P,LY.forge,LY.forge.r+10))pad="forge";else if(near(P,LY.dock,LY.dock.r+6))pad="dock";else if(near(P,LY.collect,LY.collect.r+6))pad="collect";
   if(pad!==P.pad){P.pad=pad;
-    if(pad==="shop"||pad==="dock"){if(carrying)toast("Bring the egg to your base first","#ffd166");else{P.vx=P.vy=0;pointer.active=false;pad==="shop"?shopMenu():dockMenu()}}}
+    if(pad==="shop"||pad==="dock"||pad==="forge"){if(carrying)toast("Bring the egg to your base first","#ffd166");else{P.vx=P.vy=0;pointer.active=false;pad==="shop"?shopMenu():pad==="forge"?forgeMenu("tools"):dockMenu()}}}
   if(pad==="collect"&&SV.vault>=1){const v=Math.floor(SV.vault);SV.coins+=v;SV.vault-=v;sfx.coin();spark(LY.collect.x,LY.collect.y,"#ffd166");toast(`+${fmt(v)} coins`,"#ffd166");persist()}
-  if(!carrying)LY.rpeds.forEach((p,i)=>{if(P.carry==null&&SV.rival[i]!=null&&near(P,p,26)){P.carry=SV.rival[i];SV.rival[i]=null;SV.restock[i]=Date.now()+RESTOCK;crab.state="chase";sfx.snap();toast(`Got a ${EGGS[P.carry].name}! Run to your base`,"#ff3b5c");persist()}});
+  if(!carrying)LY.rpeds.forEach((p,i)=>{if(P.carry==null&&SV.rival[i]!=null&&near(P,p,26+netReach())){P.carry=SV.rival[i];SV.rival[i]=null;SV.restock[i]=Date.now()+RESTOCK;crab.state="chase";sfx.snap();toast(`Got a ${EGGS[P.carry].name}! Run to your base`,"#ff3b5c");persist()}});
   if(P.carry!=null&&inRect(P,LY.base)){const t=P.carry;P.carry=null;crab.state="home";addEgg(t)}
-  crab.ph+=dt*10;const rv=LY.rival;
+  crab.ph+=dt*10;const rv=LY.rival;crab.stun=Math.max(0,(crab.stun||0)-dt);
+  if(SV.tools.spear&&P.dash>0&&crab.stun<=0&&near(P,crab,40)){crab.stun=1.5+.4*SV.tools.spear;sfx.clang();spark(crab.x,crab.y,"#ffd166");shake=.3;toast("Snapjaw is stunned!","#ffd166")}
+  if(crab.stun>0){crab.ph+=dt*20;stepParts(dt);return}
   if(crab.state==="chase"&&P.carry!=null){const cs=135+P.carry*17;const dx=P.x-crab.x,dy=P.y-crab.y,d=Math.hypot(dx,dy)||1;crab.x+=dx/d*cs*dt;crab.y+=dy/d*cs*dt;crab.face=Math.atan2(dy,dx);
     if(d<28&&P.inv<=0){const i=SV.rival.findIndex(x=>x==null);if(i>=0){SV.rival[i]=P.carry;SV.restock[i]=0}P.carry=null;crab.state="home";
       sfx.chomp();shake=.7;flash=.7;toast("Snapped! The egg went back","#ff3b5c");P.x=LY.spawn.x;P.y=LY.spawn.y;P.vx=P.vy=0;P.inv=1;persist()}}
@@ -593,7 +648,7 @@ function updMom(){const s=S(),f=$("momFill"),t=$("momTxt");
   else if(mom.state==="warn"){f.style.width="100%";f.style.background="#ff3b5c";t.textContent="Coming";t.style.color="#ffd166"}
   else if(mom.state==="hunt"){f.style.width=Math.max(0,mom.t/(s.hunt*1.6+4))*100+"%";f.style.background="#ff3b5c";t.textContent="HUNTING";t.style.color="#ff3b5c"}
   else{f.style.width="0%";t.textContent="Leaving";t.style.color="#9fc4d6"}
-  $("hpChip").hidden=!comp.length;$("hpName").textContent=mom.boss?s.boss:"Her HP";$("hpFill").style.width=(mom.hp/mom.max*100)+"%"}
+  $("hpChip").hidden=!comp.length&&!SV.tools.spear;$("hpName").textContent=mom.boss?s.boss:"Her HP";$("hpFill").style.width=(mom.hp/mom.max*100)+"%"}
 
 /* ================= input ================= */
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),hit=new THREE.Vector3();
@@ -619,7 +674,7 @@ function renderLobby(now){
   const ce=carrySlotL.set(P.carry!=null?"e"+P.carry:"",()=>makeEgg(P.carry,13));if(ce){ce.position.copy(Lo(P.x,P.y,84+Math.sin(now*5)*2));ce.userData.m.emissiveIntensity=.5+.3*Math.sin(now*6)}
   const c=crabM;c.g.position.copy(Lo(crab.x,crab.y,2));const tgt=-(crab.face??Math.PI/2);let dr=tgt-c.g.rotation.y;dr=Math.atan2(Math.sin(dr),Math.cos(dr));c.g.rotation.y+=dr*.15;
   c.legs.forEach(l=>l.p.rotation.z=Math.sin(crab.ph+l.i*1.3+(l.s>0?0:Math.PI))*.35);
-  const pinch=crab.state==="chase"?Math.abs(Math.sin(crab.ph*.7))*.5:.08;c.claws.forEach(p=>{p.userData.top.rotation.z=pinch;p.rotation.y=Math.sin(crab.ph*.3)*.2});
+  c.g.rotation.x=crab.stun>0?Math.sin(now*20)*.15:0;const pinch=crab.state==="chase"?Math.abs(Math.sin(crab.ph*.7))*.5:.08;c.claws.forEach(p=>{p.userData.top.rotation.z=pinch;p.rotation.y=Math.sin(crab.ph*.3)*.2});
   const nowMs=Date.now();
   LY.peds.forEach((p,i)=>{const open=i<slots();pedMeshes[i].material.color.set(open?"#c9b48a":"#7a7266");pedMeshes[i].material.opacity=open?1:.5;pedMeshes[i].material.transparent=!open;
     const it=open?SV.base[i]:null;
@@ -627,7 +682,7 @@ function renderLobby(now){
     const m=pedSlots[i].set(key,()=>it.fish?makeFish(40+it.t*3,EGGS[it.t].col,{brow:it.fish==="fight",band:it.fish==="fight",shadow:true}).g:makeEgg(it.t,17));
     if(!it){if(!open)lab("pr"+i,"locked",Lo(p.x,p.y,20),lCam,"sm","#ffffff88");return}
     if(it.fish){const a=now*1.4+i;m.position.copy(Lo(p.x+Math.cos(a)*10,p.y+Math.sin(a)*8,38+Math.sin(now*3+i)*3));m.rotation.y=-a-Math.PI/2;
-      lab("pr"+i,`+${fmt(itemRate(it))}/s${it.fish==="fight"?" · fighter":""}`,Lo(p.x,p.y,64),lCam,"sm",it.fish==="fight"?"#ff8fa0":"#ffd166")}
+      lab("pr"+i,`Lv${lv(it)} · +${fmt(itemRate(it))}/s${it.fish==="fight"?" · fighter":""}`,Lo(p.x,p.y,64),lCam,"sm",it.fish==="fight"?"#ff8fa0":"#ffd166")}
     else{const left=(it.at-nowMs)/1000;m.position.copy(Lo(p.x,p.y,34+Math.sin(now*2+i)*2));m.rotation.y=now*.6+i;m.rotation.z=left<10?Math.sin(now*30)*.2:0;
       m.userData.m.emissiveIntensity=.25+.15*Math.sin(now*3+i);lab("pr"+i,`hatch ${mmss(left)}`,Lo(p.x,p.y,58),lCam,"sm","#e8fbff")}});
   LY.rpeds.forEach((p,i)=>{const t=SV.rival[i];const e=rivalSlots[i].set(t!=null?"e"+t:"",()=>makeEgg(t,17));
@@ -637,6 +692,10 @@ function renderLobby(now){
   lab("base","YOUR BASE",Lo(LY.base.x+LY.base.w/2,LY.base.y,34),lCam,"big","#7fe0a8");
   lab("rival","SNAPJAW'S NEST",Lo(LY.rival.x+LY.rival.w/2,LY.rival.y,34),lCam,"big","#ff8fa0");
   lab("shop","SHOP",Lo(LY.shop.x,LY.shop.y,LY.shop.r*2.3),lCam,"big","#ffd166");
+  lab("forge","FORGE",Lo(LY.forge.x,LY.forge.y,LY.forge.r*2.8),lCam,"big","#ffb07a");
+  forgeFire.material.emissiveIntensity=1.1+Math.sin(now*13)*.25+Math.sin(now*7.3)*.2;forgeLight.intensity=1+Math.sin(now*11)*.3;
+  const ws=walkerSpear.set(SV.tools.spear?"s"+SV.tools.spear:"",()=>{const g=makeSpear(SV.tools.spear,40);g.rotation.z=Math.PI/2.4;g.position.set(2,24,11);return g});
+  if(crab.stun>0)lab("crabz","stunned",Lo(crab.x,crab.y,70),lCam,"sm","#ffd166");
   lab("dock","DIVE",Lo(LY.dock.x,LY.dock.y,34),lCam,"big","#e8fbff");
   lab("vault",fmt(SV.vault)+" coins",Lo(LY.collect.x,LY.collect.y,30),lCam,"","#ffd166");
   if(crab.state==="chase")lab("crab!","!",Lo(crab.x,crab.y,84),lCam,"huge","#ff3b5c");
@@ -652,7 +711,7 @@ function renderDive(now){const s=S();
   const mv=mom.state==="hunt"||mom.state==="leave";momM.g.visible=mv;
   if(mv){poseFish(momM,mom.x,mom.y,mom.a,mom.ph,0);momM.mouth.scale.setScalar(Math.max(.01,mom.mouth));momM.eyeMat.emissiveIntensity=mom.state==="hunt"?1.6:.2;
     momM.bodyMat.emissive.set(mom.stun>0?"#ff3b5c":"#000000");momM.bodyMat.emissiveIntensity=mom.stun>0?.5:0;
-    if(comp.length&&!mom.gone&&mom.state==="hunt")lab("mhp",`${mom.boss?s.boss+" ":""}${Math.ceil(mom.hp)}/${mom.max}`,D(mom.x,mom.y-mom.r*.9,0),dCam,"sm","#ff8fa0")}
+    if((comp.length||SV.tools.spear)&&!mom.gone&&mom.state==="hunt")lab("mhp",`${mom.boss?s.boss+" ":""}${Math.ceil(mom.hp)}/${mom.max}`,D(mom.x,mom.y-mom.r*.9,0),dCam,"sm","#ff8fa0")}
   const done=G.count>=s.quota;
   boatG.userData.ring.visible=done;boatG.userData.ring.rotation.z=now;boatG.position.y=H/2-(SURF-6)+Math.sin(now*1.5)*2;boatG.rotation.z=Math.sin(now*1.1)*.03;
   if(done)lab("surf","SURFACE",D(W/2,SURF+44,0),dCam,"","#7fe0a8");
