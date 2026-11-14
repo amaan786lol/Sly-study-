@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Mother's Reef</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -6,7 +7,7 @@
 /* Layout: full-bleed 3D canvas (island lobby or side-on ocean dive), HUD strip on top, floating world labels, modal cards */
 :root{
   --abyss:#04121f; --deep:#0b2f4a; --foam:#e8fbff; --kelp:#7fe0a8;
-  --coral:#ff7a59; --gold:#ffd166; --danger:#ff3b5c; --muted:#9fc4d6;
+  --coral:#ff7a59; --gold:#ffd166; --danger:#ff3b5c; --muted:#9fc4d6; --whirl:#c59bff;
   --f-display:"Lilita One","Arial Rounded MT Bold",system-ui,sans-serif;
   --f-body:"Rubik",system-ui,-apple-system,sans-serif;
   color-scheme:dark;
@@ -29,8 +30,8 @@ canvas{display:block;width:100%;height:100%}
 .chip b{font-family:var(--f-display);font-weight:400;font-size:16px;letter-spacing:.3px}
 .lbl{color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:1.2px}
 #lives{color:var(--danger);letter-spacing:2px;font-size:15px}
-#momBar{width:64px;height:6px;border-radius:3px;background:#ffffff22;overflow:hidden;align-self:center}
-#momFill{display:block;height:100%;width:0;background:var(--kelp)}
+.bar{width:64px;height:6px;border-radius:3px;background:#ffffff22;overflow:hidden;align-self:center}
+.bar i{display:block;height:100%;width:0;background:var(--kelp)}
 #momTxt{font-family:var(--f-display);font-weight:400;font-size:14px}
 .spacer{flex:1}
 .pill{pointer-events:auto;background:#04121fb3;border:1px solid #ffffff1f;color:var(--foam);border-radius:999px;padding:5px 10px;font:600 12px var(--f-body);cursor:pointer}
@@ -45,7 +46,8 @@ canvas{display:block;width:100%;height:100%}
 .eyebrow{color:var(--kelp);text-transform:uppercase;letter-spacing:3px;font-size:12px;font-weight:800}
 h1{font-family:var(--f-display);font-weight:400;font-size:clamp(42px,11vw,72px);line-height:.92;margin:0;text-wrap:balance;text-shadow:0 4px 0 #0b2f4a,0 8px 24px #000a}
 h2{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,8vw,44px);line-height:1;margin:0;text-wrap:balance}
-p{margin:0;color:var(--muted);line-height:1.5;font-size:15px;max-width:40ch}
+h3{font:800 11px var(--f-body);text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin:4px 0 -6px;align-self:flex-start}
+p{margin:0;color:var(--muted);line-height:1.5;font-size:15px;max-width:42ch}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
 .stat{background:#ffffff0d;border:1px solid #ffffff14;border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;gap:2px}
 .stat b{font-family:var(--f-display);font-weight:400;font-size:22px;font-variant-numeric:tabular-nums}
@@ -54,17 +56,17 @@ p{margin:0;color:var(--muted);line-height:1.5;font-size:15px;max-width:40ch}
 .row .t{font-weight:800;color:var(--foam);font-size:14px}
 .row .d{color:var(--muted);font-size:12px}
 .row .pips{color:var(--gold);letter-spacing:2px;font-size:11px}
-.row.locked{opacity:.45}
+.row.dim{opacity:.5}
+.tag{font:400 13px var(--f-display);letter-spacing:.4px}
 .buy{pointer-events:auto;font:400 15px var(--f-display);color:#04121f;background:var(--gold);border:0;border-radius:9px;padding:8px 12px;cursor:pointer;min-width:84px;font-variant-numeric:tabular-nums}
 .buy[disabled]{background:#ffffff22;color:var(--muted);cursor:default}
-.buy.green{background:var(--kelp)}
 button.go{pointer-events:auto;font:400 22px var(--f-display);letter-spacing:.5px;color:#04121f;background:var(--gold);border:0;border-radius:14px;padding:14px 34px;cursor:pointer;box-shadow:0 5px 0 #b8892a}
 button.go:active{transform:translateY(3px);box-shadow:0 2px 0 #b8892a}
 button.link{background:none;border:0;color:var(--muted);font:600 13px var(--f-body);cursor:pointer;text-decoration:underline;pointer-events:auto}
 button:focus-visible{outline:3px solid var(--kelp);outline-offset:3px}
 .keys{font-size:12px;color:var(--muted)}
 .keys kbd{font:600 11px var(--f-body);border:1px solid #ffffff33;border-radius:4px;padding:1px 5px;color:var(--foam)}
-.bad{color:var(--danger)} .good{color:var(--kelp)} .goldt{color:var(--gold)}
+.bad{color:var(--danger)} .good{color:var(--kelp)} .goldt{color:var(--gold)} .whirl{color:var(--whirl)}
 #toast{position:absolute;left:50%;top:22%;transform:translateX(-50%);font:400 clamp(20px,5.5vw,32px) var(--f-display);pointer-events:none;
   text-shadow:0 3px 0 #04121f,0 0 20px #000;opacity:0;transition:opacity .25s;text-align:center;width:min(90vw,640px)}
 </style>
@@ -76,16 +78,17 @@ button:focus-visible{outline:3px solid var(--kelp);outline-offset:3px}
   <div class="hud" id="hudLobby" hidden>
     <div class="chip"><span class="lbl">Coins</span><b id="lCoins" class="goldt">0</b></div>
     <div class="chip"><span class="lbl">Income</span><b id="lRate">0/s</b></div>
-    <div class="chip"><span class="lbl">Eggs</span><b id="lEggs">0/4</b></div>
+    <div class="chip"><span class="lbl">Base</span><b id="lEggs">0/4</b></div>
+    <div class="chip"><span class="lbl">Fighters</span><b id="lFight">0</b></div>
     <div class="spacer"></div>
     <button class="pill mute" type="button">Sound on</button>
   </div>
   <div class="hud" id="hudDive" hidden>
     <div class="chip"><span class="lbl">Stage</span><b id="hStage">1</b></div>
-    <div class="chip"><span class="lbl">Fish</span><b id="hFish">0/5</b></div>
-    <div class="chip"><span class="lbl">Haul</span><b id="hHaul" class="goldt">0</b></div>
-    <div class="chip"><span class="lbl">Egg</span><b id="hEgg">at nest</b></div>
-    <div class="chip"><span class="lbl">Mother</span><span id="momBar"><span id="momFill"></span></span><span id="momTxt">Calm</span></div>
+    <div class="chip"><span class="lbl">Eggs</span><b id="hFish">0/5</b></div>
+    <div class="chip"><span class="lbl">Run loot</span><b id="hHaul" class="goldt">0</b></div>
+    <div class="chip"><span class="lbl">Mother</span><span class="bar"><i id="momFill"></i></span><span id="momTxt">Calm</span></div>
+    <div class="chip" id="hpChip"><span class="lbl" id="hpName">Her HP</span><span class="bar"><i id="hpFill" style="background:var(--danger)"></i></span></div>
     <div class="spacer"></div>
     <div class="chip"><span id="lives">♥</span></div>
     <button class="pill mute" type="button">Sound on</button>
@@ -101,12 +104,12 @@ button:focus-visible{outline:3px solid var(--kelp);outline-offset:3px}
 if(!window.THREE){document.getElementById("card").innerHTML="<h2>3D didn't load</h2><p>The 3D engine couldn't be downloaded. Check your connection and reload the page.</p>";return}
 /* ================= data ================= */
 const STAGES=[
- {name:"Sunlit Shallows",depth:"5 m",   value:10, quota:5, babies:7, bSpd:55, flee:0,   calm:[11,13],warn:2.6,hunt:6, mSpd:125,turn:1.6,dark:0,  top:"#4fc6dc",bot:"#16709a",sand:"#d8c08c"},
- {name:"Coral Reef",     depth:"15 m",  value:25, quota:6, babies:8, bSpd:70, flee:80,  calm:[9,11], warn:2.3,hunt:7, mSpd:145,turn:1.8,dark:0,  top:"#2fa9c9",bot:"#0d557c",sand:"#cdb27c"},
- {name:"Kelp Forest",    depth:"30 m",  value:50, quota:8, babies:9, bSpd:85, flee:105, calm:[7,9],  warn:2.0,hunt:8, mSpd:165,turn:2.0,dark:.2, top:"#1f8aa6",bot:"#08405e",sand:"#9c8a66"},
- {name:"Open Blue",      depth:"80 m",  value:100,quota:10,babies:10,bSpd:100,flee:125, calm:[5.5,7],warn:1.8,hunt:9, mSpd:185,turn:2.2,dark:.35,top:"#166d93",bot:"#052b45",sand:"#6e6450"},
- {name:"Twilight Zone",  depth:"300 m", value:250,quota:12,babies:11,bSpd:115,flee:140, calm:[4,5.5],warn:1.5,hunt:10,mSpd:200,turn:2.4,dark:.7, top:"#0d3d5f",bot:"#03172a",sand:"#2a3038"},
- {name:"The Abyss",      depth:"1,000 m",value:500,quota:14,babies:12,bSpd:130,flee:160,calm:[3,4],  warn:1.2,hunt:12,mSpd:215,turn:2.6,dark:.88,top:"#071f33",bot:"#010812",sand:"#151a22"}
+ {name:"Sunlit Shallows",depth:"5 m",   value:10, quota:5, babies:7, bSpd:45, flee:0,  calm:[11,13],warn:2.6,hunt:6, mSpd:125,turn:1.6,dark:0,  top:"#4fc6dc",bot:"#16709a",sand:"#d8c08c"},
+ {name:"Coral Reef",     depth:"15 m",  value:25, quota:6, babies:8, bSpd:58, flee:50, calm:[9,11], warn:2.3,hunt:7, mSpd:145,turn:1.8,dark:0,  top:"#2fa9c9",bot:"#0d557c",sand:"#cdb27c"},
+ {name:"Kelp Forest",    depth:"30 m",  value:50, quota:8, babies:9, bSpd:70, flee:65, calm:[7,9],  warn:2.0,hunt:8, mSpd:165,turn:2.0,dark:.2, top:"#1f8aa6",bot:"#08405e",sand:"#9c8a66",boss:"Kelp Matriarch"},
+ {name:"Open Blue",      depth:"80 m",  value:100,quota:10,babies:10,bSpd:82, flee:80, calm:[5.5,7],warn:1.8,hunt:9, mSpd:185,turn:2.2,dark:.35,top:"#166d93",bot:"#052b45",sand:"#6e6450"},
+ {name:"Twilight Zone",  depth:"300 m", value:250,quota:12,babies:11,bSpd:95, flee:90, calm:[4,5.5],warn:1.5,hunt:10,mSpd:200,turn:2.4,dark:.7, top:"#0d3d5f",bot:"#03172a",sand:"#2a3038"},
+ {name:"The Abyss",      depth:"1,000 m",value:500,quota:14,babies:12,bSpd:108,flee:100,calm:[3,4], warn:1.2,hunt:12,mSpd:215,turn:2.6,dark:.88,top:"#071f33",bot:"#010812",sand:"#151a22",boss:"Abyss Queen"}
 ];
 const EGGS=[
  {name:"Shallow Egg", rate:2,  col:"#f6e7c1",spot:"#c9944a"},
@@ -116,25 +119,33 @@ const EGGS=[
  {name:"Twilight Egg",rate:110,col:"#c59bff",spot:"#3a1d6e"},
  {name:"Abyss Egg",   rate:300,col:"#ff3b5c",spot:"#2a0008"}
 ];
+const FISH=[{name:"Sandminnow",dmg:1},{name:"Reef Snapper",dmg:2},{name:"Kelp Pike",dmg:3},{name:"Blue Barracuda",dmg:5},{name:"Twilight Eel",dmg:8},{name:"Abyss Angler",dmg:13}];
+const HATCH=[40,80,140,220,330,480]; // seconds
 const UPS={
- speed:{name:"Flippers",      desc:"Swim and run faster",           max:5,cost:l=>100*3**l},
- dash: {name:"Jet Tank",      desc:"Dash recharges faster",         max:5,cost:l=>150*3**l},
- shield:{name:"Shark Cage",   desc:"Survive one more bite per dive",max:3,cost:l=>600*5**l},
- slots:{name:"Base Expansion",desc:"One more egg pedestal",         max:6,cost:l=>Math.round(250*2.5**l)}
+ speed:{name:"Flippers",      desc:"Swim and run faster",                max:5,cost:l=>100*3**l},
+ dash: {name:"Jet Tank",      desc:"Dash recharges faster",              max:5,cost:l=>150*3**l},
+ shield:{name:"Shark Cage",   desc:"Survive one more bite per run",      max:3,cost:l=>600*5**l},
+ slots:{name:"Base Expansion",desc:"One more pedestal in your base",     max:6,cost:l=>Math.round(250*2.5**l)},
+ squad:{name:"Squad Whistle", desc:"Bring one more fighter fish per run",max:2,cost:l=>800*4**l}
 };
-const BABY_COLORS=["#ff9f68","#ffd166","#7fe0a8","#ff7aa2","#8fd3ff","#c59bff"];
 const RESTOCK=45000;
 
 /* ================= save ================= */
-const KEY="mothersReefSave2";
-function fresh(){return{coins:0,vault:0,unlocked:0,cleared:[],up:{speed:0,dash:0,shield:0,slots:0},base:[],rival:[0,0,0],restock:[0,0,0],last:Date.now(),seen:false}}
+const KEY="mothersReefSave3";
+function fresh(){return{coins:0,vault:0,unlocked:0,best:0,up:{speed:0,dash:0,shield:0,slots:0,squad:0},base:[],rival:[0,0,0],restock:[0,0,0],last:Date.now(),seen:false}}
 let SV=fresh();
-try{const r=JSON.parse(localStorage.getItem(KEY)||"null");if(r)SV=Object.assign(fresh(),r,{up:Object.assign(fresh().up,r.up||{})})}catch(e){}
+try{let r=JSON.parse(localStorage.getItem(KEY)||"null");
+  if(!r){const o=JSON.parse(localStorage.getItem("mothersReefSave2")||"null");if(o){r=o;r.base=(o.base||[]).map(t=>({t,at:Date.now()+HATCH[t]*1000,fish:null}))}}
+  if(r)SV=Object.assign(fresh(),r,{up:Object.assign(fresh().up,r.up||{})})}catch(e){}
 function persist(){SV.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(SV))}catch(e){}}
 const slots=()=>4+SV.up.slots;
-const rate=()=>SV.base.reduce((a,t)=>a+EGGS[t].rate,0);
+const itemRate=it=>EGGS[it.t].rate*(it.fish==="earn"?3:it.fish==="fight"?1.5:1);
+const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0);
+const rate=()=>SV.base.reduce((a,it)=>a+itemRate(it),0);
+const squad=()=>SV.base.filter(f=>f.fish==="fight").sort((a,b)=>b.t-a.t).slice(0,1+SV.up.squad);
 let offline=0;{const el=Math.min(7200,Math.max(0,(Date.now()-SV.last)/1000));offline=Math.floor(rate()*el);SV.vault+=offline}
 const fmt=n=>{n=Math.floor(n);return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1)+"M":n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+"k":n.toLocaleString()};
+const mmss=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 
 /* ================= renderer ================= */
 const $=id=>document.getElementById(id);
@@ -145,8 +156,8 @@ const lScene=new THREE.Scene(),dScene=new THREE.Scene();
 const lCam=new THREE.PerspectiveCamera(40,1,10,8000),dCam=new THREE.PerspectiveCamera(45,1,10,8000);
 let cw=1,ch=1,W=1000,H=650,SURF=56,LY=null,view="lobby",dDist=800;
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
-const D=(x,y,z=0)=>V(x-W/2,H/2-y,z);          // dive: logic (x,y-down) -> 3D side plane
-const Lo=(x,y,h=0)=>V(x-W/2,h,y-H/2);         // lobby: logic (x,y) -> ground plane
+const D=(x,y,z=0)=>V(x-W/2,H/2-y,z);
+const Lo=(x,y,h=0)=>V(x-W/2,h,y-H/2);
 const col=c=>new THREE.Color(c);
 const mat=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.65,metalness:.05},o));
 const bas=(c,o={})=>new THREE.MeshBasicMaterial(Object.assign({color:c},o));
@@ -162,14 +173,16 @@ const sfx={grab:()=>tone(660,.12,"triangle",.12,1.6),gold:()=>{tone(880,.1,"tria
  warn:()=>tone(110,.6,"sawtooth",.08,.7),chomp:()=>{tone(180,.35,"square",.18,.3);tone(70,.6,"sawtooth",.15,.5)},dash:()=>tone(300,.15,"sine",.08,2),
  coin:()=>{tone(988,.08,"square",.06);setTimeout(()=>tone(1319,.14,"square",.06),70)},buy:()=>{[523,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.15,"triangle",.1),i*70))},
  egg:()=>tone(400,.2,"triangle",.12,2),snap:()=>{tone(220,.1,"square",.15,.5);setTimeout(()=>tone(160,.15,"square",.15,.5),90)},
+ hit:()=>tone(140+Math.random()*60,.09,"square",.07,.6),hatch:()=>{[392,523,659].forEach((f,i)=>setTimeout(()=>tone(f,.18,"triangle",.1,1.2),i*90))},
+ whoosh:()=>tone(90,.8,"sine",.15,3),win:()=>[523,659,784,1046,1319].forEach((f,i)=>setTimeout(()=>tone(f,.3,"triangle",.12),i*100)),
  clear:()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.25,"triangle",.12),i*110))};
 document.querySelectorAll(".mute").forEach(b=>b.onclick=()=>{muted=!muted;document.querySelectorAll(".mute").forEach(x=>x.textContent=muted?"Sound off":"Sound on")});
 
 /* ================= state ================= */
 const rand=(a,b)=>a+Math.random()*(b-a);
-const G={mode:"title",stage:0,lives:1,haul:0,count:0,gold:0,t:0,egg:"nest"};
+const G={mode:"title",stage:0,lives:1,count:0,gold:0,t:0,egg:"nest"};
 let P={x:0,y:0,vx:0,vy:0,a:0,dash:0,cd:0,inv:0,kick:0,carry:null};
-let babies=[],mom=null,parts=[],nest=null,shake=0,flash=0;
+let babies=[],mom=null,parts=[],nest=null,portal=null,comp=[],RUN=null,shake=0,flash=0;
 let crab={x:0,y:0,tx:0,ty:0,state:"patrol",ph:0,wait:0};
 const keys={};const pointer={x:0,y:0,active:false};
 const S=()=>STAGES[G.stage];
@@ -179,23 +192,25 @@ const dashCd=()=>1.5*(1-.12*SV.up.dash);
 /* ================= 3D models ================= */
 function makeFish(len,c,o={}){const g=new THREE.Group(),inner=new THREE.Group();g.add(inner);
   const h=o.h||.42,m=mat(c,{emissive:col(c),emissiveIntensity:o.glow||0}),fm=mat(o.fin||c);
-  const body=mesh(SPH,m);body.scale.set(len*.5,len*h*.5,len*h*.36);inner.add(body);
+  const body=mesh(SPH,m,o.shadow);body.scale.set(len*.5,len*h*.5,len*h*.36);inner.add(body);
   if(o.belly){const b=mesh(SPH,mat(o.belly));b.scale.set(len*.4,len*h*.3,len*h*.3);b.position.set(len*.04,-len*h*.2,0);inner.add(b)}
   const tp=new THREE.Group();tp.position.x=-len*.42;inner.add(tp);
   const tail=mesh(new THREE.ConeGeometry(len*h*.55,len*.34,4),fm);tail.rotation.z=-Math.PI/2;tail.scale.z=.25;tail.position.x=-len*.14;tp.add(tail);
   const dor=mesh(new THREE.ConeGeometry(len*.12,len*h*.5,4),fm);dor.scale.z=.2;dor.position.set(len*.02,len*h*.55,0);dor.rotation.z=-.4;inner.add(dor);
-  const eyes=[];[-1,1].forEach(s=>{const e=mesh(SPH,bas("#ffffff"));e.scale.setScalar(len*.065);e.position.set(len*.3,len*h*.08,s*len*h*.3);inner.add(e);
-    const pu=mesh(SPH,o.eyeMat||bas("#04121f"));pu.scale.setScalar(len*.038);pu.position.set(len*.34,len*h*.08,s*len*h*.34);inner.add(pu);eyes.push(pu)});
-  return{g,inner,tp,body,eyes,len}}
+  [-1,1].forEach(s=>{const e=mesh(SPH,bas("#ffffff"));e.scale.setScalar(len*.065);e.position.set(len*.3,len*h*.08,s*len*h*.3);inner.add(e);
+    const pu=mesh(SPH,o.eyeMat||bas("#04121f"));pu.scale.setScalar(len*.038);pu.position.set(len*.34,len*h*.08,s*len*h*.34);inner.add(pu);
+    if(o.brow){const b=mesh(new THREE.BoxGeometry(len*.14,len*.025,len*.02),bas("#04121f"));b.position.set(len*.3,len*h*.22,s*len*h*.33);b.rotation.z=-.4;inner.add(b)}});
+  if(o.band){const b=mesh(new THREE.TorusGeometry(len*h*.42,len*.03,6,16),mat("#ff3b5c"));b.rotation.y=Math.PI/2;b.position.x=len*.12;inner.add(b)}
+  return{g,inner,tp,body,len}}
 function poseFish(f,x,y,a,ph,z=0){f.g.position.copy(D(x,y,z));f.g.rotation.z=-a;f.inner.rotation.x=Math.cos(a)<0?Math.PI:0;f.tp.rotation.y=Math.sin(ph)*.45}
-function makeMother(){const eyeMat=new THREE.MeshStandardMaterial({color:"#04121f",emissive:col("#ff3b5c"),emissiveIntensity:0});
-  const f=makeFish(100,"#3d5a73",{h:.5,belly:"#9bb3c4",fin:"#26394d",eyeMat});f.eyeMat=eyeMat;
+function makeMother(boss){const eyeMat=new THREE.MeshStandardMaterial({color:"#04121f",emissive:col("#ff3b5c"),emissiveIntensity:0});
+  const f=makeFish(100,boss?"#4a3a5f":"#3d5a73",{h:.5,belly:boss?"#b9a3c9":"#9bb3c4",fin:boss?"#2e2040":"#26394d",eyeMat,brow:true});f.eyeMat=eyeMat;
   const mouth=new THREE.Group();mouth.position.x=44;f.inner.add(mouth);
   const throat=mesh(SPH,mat("#3a0610"));throat.scale.set(8,12,10);mouth.add(throat);
-  const tm=mat("#f5f0e6");for(let i=0;i<10;i++){const a=i/10*Math.PI*2;const t=mesh(new THREE.ConeGeometry(2.2,7,4),tm);
-    t.position.set(5,Math.cos(a)*10,Math.sin(a)*8);t.rotation.x=a;t.rotation.z=Math.PI;mouth.add(t)}
-  [-1,1].forEach(s=>{const b=mesh(new THREE.BoxGeometry(14,2.5,2),mat("#04121f"));b.position.set(30,18,s*16);b.rotation.z=-.35;f.inner.add(b)});
-  f.mouth=mouth;mouth.scale.setScalar(.01);return f}
+  const tm=mat("#f5f0e6");for(let i=0;i<10;i++){const a=i/10*Math.PI*2;const t=mesh(new THREE.ConeGeometry(2.2,7,4),tm);t.position.set(5,Math.cos(a)*10,Math.sin(a)*8);t.rotation.x=a;t.rotation.z=Math.PI;mouth.add(t)}
+  if(boss){const cm=mat("#ffd166",{metalness:.7,roughness:.25,emissive:col("#ffb703"),emissiveIntensity:.3});for(let i=0;i<5;i++){const s=mesh(new THREE.ConeGeometry(3,12,4),cm);s.position.set(12+i*5,26,0);s.rotation.z=-.2;f.inner.add(s)}}
+  f.mouth=mouth;mouth.scale.setScalar(.01);
+  f.bodyMat=f.body.material;return f}
 function makeDiver(){const g=new THREE.Group(),inner=new THREE.Group();g.add(inner);
   const suit=mesh(SPH,mat("#ff7a59"));suit.scale.set(15,7,7);inner.add(suit);
   const tank=mesh(new THREE.CylinderGeometry(3.5,3.5,16,10),mat("#ffd166",{metalness:.4,roughness:.35}));tank.rotation.z=Math.PI/2;tank.position.set(-2,7,0);inner.add(tank);
@@ -214,12 +229,13 @@ function makeWalker(){const g=new THREE.Group();
   const legs=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(0,9,s*4.5);const l=mesh(new THREE.CylinderGeometry(3,3,10,8),mat("#1b2a3a"),true);l.position.y=-4;p.add(l);
     const f=mesh(new THREE.BoxGeometry(12,2,6),mat("#1b2a3a"),true);f.position.set(3,-9,0);p.add(f);g.add(p);return p});
   g.scale.setScalar(1.5);return{g,legs}}
-function makeEgg(t,r){const e=EGGS[t],g=new THREE.Group();
-  const m=mat(e.col,{emissive:col(e.col),emissiveIntensity:.25,roughness:.4});const s=mesh(SPH,m,true);s.scale.set(r*.78,r,r*.78);g.add(s);
-  const sm=mat(e.spot);[[.5,.3,.2],[-.4,-.1,.5],[.1,-.5,-.7],[-.2,.5,-.6],[.7,-.3,-.2]].forEach(([a,b,c])=>{const v=V(a,b,c).normalize();const d=mesh(SPH,sm);d.scale.setScalar(r*.16);d.position.set(v.x*r*.74,v.y*r*.95,v.z*r*.74);g.add(d)});
+function makeEggC(c,spot,r,glow=.25){const g=new THREE.Group();
+  const m=mat(c,{emissive:col(c),emissiveIntensity:glow,roughness:.4});const s=mesh(SPH,m,true);s.scale.set(r*.78,r,r*.78);g.add(s);
+  const sm=mat(spot);[[.5,.3,.2],[-.4,-.1,.5],[.1,-.5,-.7],[-.2,.5,-.6],[.7,-.3,-.2]].forEach(([a,b,cc])=>{const v=V(a,b,cc).normalize();const d=mesh(SPH,sm);d.scale.setScalar(r*.16);d.position.set(v.x*r*.74,v.y*r*.95,v.z*r*.74);g.add(d)});
   g.userData.m=m;return g}
-class EggSlot{constructor(parent,r){this.p=parent;this.r=r;this.t=-1;this.m=null}
-  set(t){if(t==null)t=-1;if(t===this.t)return this.m;if(this.m)this.p.remove(this.m);this.m=t>=0?makeEgg(t,this.r):null;if(this.m)this.p.add(this.m);this.t=t;return this.m}}
+const makeEgg=(t,r)=>makeEggC(EGGS[t].col,EGGS[t].spot,r);
+class Slot{constructor(parent){this.p=parent;this.k="";this.m=null}
+  set(key,build){if(key===this.k)return this.m;if(this.m)this.p.remove(this.m);this.m=key?build():null;if(this.m)this.p.add(this.m);this.k=key;return this.m}}
 function makeCrab(){const g=new THREE.Group(),red=mat("#e2483d"),dk=mat("#a32a3e");
   const body=mesh(SPH,red,true);body.scale.set(20,10,15);body.position.y=14;g.add(body);
   const legs=[];for(let s of[-1,1])for(let i=0;i<3;i++){const p=new THREE.Group();p.position.set(-8+i*8,12,s*12);const l=mesh(new THREE.CylinderGeometry(1.6,1.2,18,6),dk,true);l.position.set(0,-4,s*7);l.rotation.x=s*1.0;p.add(l);g.add(p);legs.push({p,s,i})}
@@ -233,7 +249,7 @@ function makeCrab(){const g=new THREE.Group(),red=mat("#e2483d"),dk=mat("#a32a3e
 const partG=new THREE.Group();const pool=[];
 for(let i=0;i<180;i++){const m=new THREE.Mesh(SPHlo,new THREE.MeshBasicMaterial({color:"#e8fbff",transparent:true,opacity:.6,depthWrite:false}));m.visible=false;partG.add(m);pool.push(m)}
 function bubble(x,y,big){if(parts.length<180)parts.push({x:x+rand(-6,6),y:y+rand(-6,6),z:rand(-6,6),vx:rand(-20,20),vy:rand(-60,-20),r:big?rand(2,5):rand(1,2.5),life:rand(.8,1.6),t:0,kind:"b"})}
-function spark(x,y,c){for(let i=0;i<16&&parts.length<180;i++){const a=rand(0,6.28),v=rand(60,180);parts.push({x,y,z:rand(-20,20),vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:rand(2,3.5),life:.6,t:0,kind:"s",c})}}
+function spark(x,y,c,n=16){for(let i=0;i<n&&parts.length<180;i++){const a=rand(0,6.28),v=rand(60,180);parts.push({x,y,z:rand(-20,20),vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:rand(2,3.5),life:.6,t:0,kind:"s",c})}}
 function syncParts(){for(let i=0;i<pool.length;i++){const m=pool[i],p=parts[i];if(!p){m.visible=false;continue}m.visible=true;const a=1-p.t/p.life;
   m.position.copy(view==="dive"?D(p.x,p.y,p.z):Lo(p.x,p.y,24+p.z));m.scale.setScalar(p.r);
   if(p.kind==="b"){m.material.color.set("#e8fbff");m.material.opacity=a*.5}else{m.material.color.set(p.c);m.material.opacity=a}}}
@@ -312,9 +328,9 @@ function buildLobby(){clearGroup(lStatic);clearGroup(lDyn);const I=LY.isl;
   LY.rpeds.forEach(p=>{const m=mesh(new THREE.CylinderGeometry(17,19,10,20),mat("#8a6a4a"),true);m.position.copy(Lo(p.x,p.y,8));lStatic.add(m)});
   [[I.x+30,I.y+I.h-30,1],[I.x+I.w-30,I.y+30,1.1],[I.x+30,I.y+30,.8],[I.x+I.w-34,I.y+I.h-34,.9]].forEach(([x,y,s])=>lStatic.add(palm(x,y,s)));
   walker=makeWalker();lDyn.add(walker.g);crabM=makeCrab();lDyn.add(crabM.g);
-  pedSlots=LY.peds.map(()=>{const g=new THREE.Group();lDyn.add(g);return new EggSlot(g,17)});
-  rivalSlots=LY.rpeds.map(()=>{const g=new THREE.Group();lDyn.add(g);return new EggSlot(g,17)});
-  const cg=new THREE.Group();lDyn.add(cg);carrySlotL=new EggSlot(cg,13);
+  pedSlots=LY.peds.map(()=>{const g=new THREE.Group();lDyn.add(g);return new Slot(g)});
+  rivalSlots=LY.rpeds.map(()=>{const g=new THREE.Group();lDyn.add(g);return new Slot(g)});
+  const cg=new THREE.Group();lDyn.add(cg);carrySlotL=new Slot(cg);
   sun.position.set(-W*.3,900,H*.5);sun.target.position.set(0,0,0);const sc=sun.shadow.camera;const m=Math.max(W,H)*.75;sc.left=-m;sc.right=m;sc.top=m;sc.bottom=-m;sc.near=100;sc.far=2500;sc.updateProjectionMatrix();
   fitLobbyCam()}
 function fitLobbyCam(){lCam.aspect=cw/ch;lCam.clearViewOffset();const I=LY.isl;
@@ -331,7 +347,7 @@ function fitLobbyCam(){lCam.aspect=cw/ch;lCam.clearViewOffset();const I=LY.isl;
 const dStatic=new THREE.Group(),dDyn=new THREE.Group(),babyG=new THREE.Group();dScene.add(dStatic,dDyn,babyG);
 const dAmb=new THREE.AmbientLight("#ffffff",.5),dSun=new THREE.DirectionalLight("#ffffff",.8),warnLight=new THREE.PointLight("#ff3b5c",0,700,1);
 dSun.position.set(.3,1,.6);dScene.add(dAmb,dSun,warnLight);
-let diverM,momM,nestSlot,carrySlotD,kelps=[],boatG,diveBuilt=false;
+let diverM,momM,nestSlot,carrySlotD,kelps=[],boatG,whirl,diveBuilt=false;
 function gradTex(a,b){const c=document.createElement("canvas");c.width=2;c.height=256;const x=c.getContext("2d");const g=x.createLinearGradient(0,0,0,256);g.addColorStop(0,a);g.addColorStop(1,b);x.fillStyle=g;x.fillRect(0,0,2,256);return new THREE.CanvasTexture(c)}
 function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dark;kelps=[];
   dCam.aspect=cw/ch;dCam.fov=45;dDist=(H/2)/Math.tan(THREE.MathUtils.degToRad(22.5))*1.05;dCam.position.set(0,0,dDist);dCam.lookAt(0,0,0);dCam.updateProjectionMatrix();
@@ -350,7 +366,7 @@ function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dar
       for(let j=0;j<nS;j++){const g=new THREE.Group();g.position.y=j?h/nS:0;par.add(g);const c=mesh(new THREE.CylinderGeometry(2.5,3.5,h/nS,6),km);c.position.y=h/nS/2;g.add(c);
         if(j%2){const l=mesh(SPH,km);l.scale.set(12,3,6);l.position.set(8,h/nS*.5,0);l.rotation.z=.6;g.add(l)}segs.push(g);par=g}
       kelps.push({segs,c:rand(0,6)})}
-    else if(G.stage<=1){const c=BABY_COLORS[i%6];const m=mat(c,{roughness:.8});
+    else if(G.stage<=1){const c=["#ff9f68","#ffd166","#7fe0a8","#ff7aa2","#8fd3ff","#c59bff"][i%6];const m=mat(c,{roughness:.8});
       if(Math.random()<.5){const b=mesh(SPH,m);b.scale.set(rand(14,26),rand(10,20),rand(12,22));b.position.set(x,floorY,z);dStatic.add(b)}
       else for(let j=0;j<4;j++){const br=mesh(new THREE.CylinderGeometry(2,3,rand(20,40),6),m);br.position.set(x+rand(-8,8),floorY+15,z+rand(-8,8));br.rotation.set(rand(-.4,.4),0,rand(-.4,.4));dStatic.add(br)}}}
   boatG=new THREE.Group();const hull=mesh(new THREE.BoxGeometry(140,22,60),mat("#7a3b26"));boatG.add(hull);
@@ -359,13 +375,19 @@ function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dar
   const mast=mesh(new THREE.CylinderGeometry(1.5,1.5,48,6),mat("#3a2a20"));mast.position.set(14,34,0);boatG.add(mast);
   boatG.position.copy(D(W/2,SURF-6,-20));dStatic.add(boatG);
   const exitRing=mesh(new THREE.TorusGeometry(70,3,8,40),mat("#7fe0a8",{emissive:col("#7fe0a8"),emissiveIntensity:1}));exitRing.rotation.x=Math.PI/2;exitRing.position.copy(D(W/2,SURF+12,0));exitRing.visible=false;dStatic.add(exitRing);boatG.userData.ring=exitRing;
+  // whirlpool to the next stage
+  whirl=new THREE.Group();const wm=mat("#c59bff",{emissive:col("#9b6bff"),emissiveIntensity:1,transparent:true,opacity:.85});
+  for(let i=0;i<4;i++){const t=mesh(new THREE.TorusGeometry(42-i*9,2.5,8,36),wm);t.userData.k=i;whirl.add(t)}
+  const core=mesh(SPH,bas("#1a0f33"));core.scale.set(16,16,4);whirl.add(core);
+  whirl.position.copy(D(portal.x,portal.y,0));whirl.visible=false;dStatic.add(whirl);
   const nm=mat("#6b4a2a",{roughness:1});const nt=mesh(new THREE.TorusGeometry(26,7,8,24),nm);nt.rotation.x=Math.PI/2;nt.position.copy(D(nest.x,nest.y+2,0));dStatic.add(nt);
   for(let i=0;i<10;i++){const tw=mesh(new THREE.CylinderGeometry(1.2,1.2,26,4),nm);const a=i/10*Math.PI*2;tw.position.copy(D(nest.x+Math.cos(a)*24,nest.y-2,Math.sin(a)*24));tw.rotation.set(rand(-.5,.5),a,rand(-.5,.5));dStatic.add(tw)}
-  const ng=new THREE.Group();ng.position.copy(D(nest.x,nest.y-12,0));dDyn.add(ng);nestSlot=new EggSlot(ng,13);
+  const ng=new THREE.Group();ng.position.copy(D(nest.x,nest.y-12,0));dDyn.add(ng);nestSlot=new Slot(ng);
   diverM=makeDiver();dDyn.add(diverM.g);
-  momM=makeMother();momM.g.scale.setScalar(mom.r*2.4/100);momM.g.visible=false;dDyn.add(momM.g);
-  if(G.stage>=4)momM.body.material.color.set("#2b3a4f");
-  const cg=new THREE.Group();dDyn.add(cg);carrySlotD=new EggSlot(cg,9);
+  momM=makeMother(!!s.boss);momM.g.scale.setScalar(mom.r*2.4/100);momM.g.visible=false;dDyn.add(momM.g);
+  if(G.stage>=4&&!s.boss)momM.body.material.color.set("#2b3a4f");
+  const cg=new THREE.Group();dDyn.add(cg);carrySlotD=new Slot(cg);
+  comp.forEach(c=>{c.f=makeFish(30+c.t*3,EGGS[c.t].col,{brow:true,band:true,glow:.1+s.dark*.4});dDyn.add(c.f.g)});
   dAmb.intensity=.25+.5*dk;dSun.intensity=.15+.85*dk;dAmb.color.set(s.top);
   diverM.lamp.intensity=s.dark*2.2;diveBuilt=true}
 
@@ -374,17 +396,21 @@ const inRect=(p,r)=>p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h;
 const near=(p,c,r)=>Math.hypot(p.x-c.x,p.y-c.y)<r;
 function rivalTier(){const u=SV.unlocked;let t=Math.max(0,u-1+(Math.random()<.55?1:0));if(Math.random()<.1)t++;return Math.min(5,t)}
 function restockRival(){const now=Date.now();for(let i=0;i<3;i++){if(SV.rival[i]==null&&now>=SV.restock[i])SV.rival[i]=rivalTier()}}
-function addEgg(t){if(SV.base.length<slots()){SV.base.push(t);toast(`${EGGS[t].name} added to your base!`,EGGS[t].col)}
-  else{let lo=0;SV.base.forEach((x,i)=>{if(x<SV.base[lo])lo=i});
-    if(t>SV.base[lo]){const old=SV.base[lo];SV.base[lo]=t;toast(`${EGGS[t].name} replaced a ${EGGS[old].name}`,EGGS[t].col)}
-    else{const v=EGGS[t].rate*60;SV.coins+=v;toast(`Base full. Sold ${EGGS[t].name} for ${fmt(v)}`,"#ffd166")}}
-  SV.base.sort((a,b)=>b-a);sfx.egg();persist();updLobbyHud()}
+function addEgg(t,quiet){const it={t,at:Date.now()+HATCH[t]*1000,fish:null};let msg;
+  if(SV.base.length<slots()){SV.base.push(it);msg=`${EGGS[t].name} added to your base. Hatches in ${mmss(HATCH[t])}`}
+  else{let lo=0;SV.base.forEach((x,i)=>{if(itemScore(x)<itemScore(SV.base[lo]))lo=i});
+    if(itemScore(it)>itemScore(SV.base[lo])){SV.base[lo]=it;msg=`${EGGS[t].name} took the spot of your weakest pedestal`}
+    else{const v=EGGS[t].rate*60;SV.coins+=v;msg=`Base full. Sold ${EGGS[t].name} for ${fmt(v)}`}}
+  SV.base.sort((a,b)=>itemScore(b)-itemScore(a));if(!quiet){toast(msg,EGGS[t].col);sfx.egg()}persist();updLobbyHud()}
+function hatchCheck(){const now=Date.now();let any=false;for(const it of SV.base)if(!it.fish&&now>=it.at){it.fish=Math.random()<.5?"fight":"earn";any=true;
+    if(view==="lobby"&&G.mode!=="title"){sfx.hatch();toast(`Hatched: ${FISH[it.t].name}${it.fish==="fight"?" (fighter!)":" (earns 3x)"}`,EGGS[it.t].col)}}
+  if(any){SV.base.sort((a,b)=>itemScore(b)-itemScore(a));persist();updLobbyHud()}}
 
 /* ================= resize ================= */
 function resize(){cw=Math.max(1,cv.clientWidth);ch=Math.max(1,cv.clientHeight);R.setPixelRatio(Math.min(2,window.devicePixelRatio||1));R.setSize(cw,ch,false);
   const a=cw/ch;if(a>=1){H=650;W=Math.round(650*a)}else{W=600;H=Math.round(600/a)}SURF=Math.max(56,H*.09);
   layout();buildLobby();
-  if(view==="dive"&&mom){P.x=Math.min(P.x,W-14);P.y=Math.min(P.y,H-24);nest.x=Math.min(nest.x,W*.85);nest.y=H-30;buildDive()}
+  if(view==="dive"&&mom){P.x=Math.min(P.x,W-14);P.y=Math.min(P.y,H-24);nest.x=Math.min(nest.x,W*.85);nest.y=H-30;placePortal();buildDive()}
   else{P.x=Math.min(Math.max(P.x,LY.isl.x+14),LY.isl.x+LY.isl.w-14);P.y=Math.min(Math.max(P.y,LY.isl.y+14),LY.isl.y+LY.isl.h-14)}}
 addEventListener("resize",resize);
 
@@ -399,14 +425,15 @@ function show(html,btns){$("card").innerHTML=html+(btns||[]).map((b,i)=>`<button
 function closeMenu(){$("overlay").hidden=true;G.mode="lobby"}
 function titleScreen(){G.mode="title";setView("lobby");$("hudLobby").hidden=true;$("hudDive").hidden=true;
   show(`<div class="eyebrow">Egg heist on a fish island</div><h1>Mother's Reef</h1>
-  <p>Steal eggs. Put them in your base. Every egg earns coins every second. Spend coins on gear, then dive deeper for rarer eggs.</p>
+  <p>Steal eggs, hatch them into fish, and build a squad strong enough to fight the mothers of the deep.</p>
   <div class="list">
-   <div class="row"><span><span class="t">Dive Dock</span><br><span class="d">Grab baby fish, steal Mother's egg from her nest, swim back to the boat.</span></span><span class="goldt">dive</span></div>
-   <div class="row"><span><span class="t">Snapjaw's Nest</span><br><span class="d">A crab guards three eggs. Grab one and run it back to your base.</span></span><span class="bad">raid</span></div>
-   <div class="row"><span><span class="t">Your Base</span><br><span class="d">Eggs pile coins into your vault. Step on the gold pad to collect.</span></span><span class="good">earn</span></div>
+   <div class="row"><span><span class="t">Dive runs</span><br><span class="d">Start in the Shallows and push deeper one stage at a time. Surface to keep your loot. Get eaten and you lose the whole run.</span></span><span class="whirl tag">run</span></div>
+   <div class="row"><span><span class="t">Hatching</span><br><span class="d">Eggs in your base hatch into fish. Some earn triple coins. Others are fighters.</span></span><span class="good tag">hatch</span></div>
+   <div class="row"><span><span class="t">Fighters</span><br><span class="d">Your best fighters follow you on runs and bite Mother. Beat her HP to drive her off. Two stages have bosses.</span></span><span class="bad tag">fight</span></div>
+   <div class="row"><span><span class="t">Snapjaw's Nest</span><br><span class="d">A crab guards three eggs on the island. Grab one and run it home.</span></span><span class="goldt tag">raid</span></div>
   </div>
   <div class="keys">Move: <kbd>mouse</kbd> / <kbd>WASD</kbd> / drag &nbsp; Dash: <kbd>Space</kbd> or <kbd>click</kbd></div>
-  ${offline>0?`<p class="good">While you were away your eggs earned ${fmt(offline)} coins.</p>`:""}`,
+  ${offline>0?`<p class="good">While you were away your base earned ${fmt(offline)} coins.</p>`:""}`,
   [{label:SV.seen?"Back to the island":"Start",fn:()=>{SV.seen=true;enterLobby()}}])}
 function shopMenu(){G.mode="menu";
   const rows=Object.entries(UPS).map(([k,u])=>{const l=SV.up[k],maxed=l>=u.max,c=maxed?0:u.cost(l);
@@ -415,35 +442,40 @@ function shopMenu(){G.mode="menu";
   show(`<div class="eyebrow">Shop</div><h2>Gear Shack</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins.</p><div class="list">${rows}</div>`,
    [{label:"Done",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
   $("card").querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{const k=b.dataset.up,c=UPS[k].cost(SV.up[k]);if(SV.coins>=c&&SV.up[k]<UPS[k].max){SV.coins-=c;SV.up[k]++;sfx.buy();persist();updLobbyHud();shopMenu()}})}
-function resetAsk(){show(`<div class="eyebrow bad">Reset</div><h2>Wipe your save?</h2><p>All coins, eggs and gear will be gone.</p>`,
+function resetAsk(){show(`<div class="eyebrow bad">Reset</div><h2>Wipe your save?</h2><p>All coins, eggs, fish and gear will be gone.</p>`,
   [{label:"Keep my save",fn:shopMenu},{label:"Yes, wipe it",cls:"link",fn:()=>{SV=fresh();SV.seen=true;restockRival();persist();enterLobby()}}])}
-function dockMenu(){G.mode="menu";
-  const rows=STAGES.map((s,i)=>{const open=i<=SV.unlocked;
-    return `<div class="row ${open?"":"locked"}"><span><span class="t">${i+1}. ${s.name}</span> <span class="d">${s.depth}</span><br><span class="d">Grab ${s.quota} · ${s.value}/fish · nest holds a <span style="color:${EGGS[i].col}">${EGGS[i].name}</span> (${EGGS[i].rate}/s)</span></span>
-    <button class="buy ${SV.cleared[i]?"green":""}" data-st="${i}" type="button" ${open?"":"disabled"}>${open?(SV.cleared[i]?"Again":"Dive"):"Locked"}</button></div>`}).join("");
-  show(`<div class="eyebrow">Dive Dock</div><h2>Pick a dive</h2><p>Clear a stage to unlock the next one down.</p><div class="list">${rows}</div>`,[{label:"Stay on the island",cls:"link",fn:closeMenu}]);
-  $("card").querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{audio();G.stage=+b.dataset.st;stageIntro()})}
-function stageIntro(){G.mode="menu";const s=S();
-  show(`<div class="eyebrow">Stage ${G.stage+1} of 6 · ${s.depth} down</div><h2>${s.name}</h2>
-  <div class="stats"><div class="stat"><span class="lbl">Grab</span><b>${s.quota}</b></div><div class="stat"><span class="lbl">Per fish</span><b class="goldt">${s.value}</b></div><div class="stat"><span class="lbl">Bites you survive</span><b>${SV.up.shield}</b></div></div>
-  <p>${["She's slow up here. Learn her rhythm.","The little ones start to dodge you.","Darker water. Watch the warning bar.","She's faster than you now. Use your dash.","You can barely see. Your headlamp only reaches so far.","Last stage. She barely rests down here."][G.stage]}</p>
-  <p>Her <b style="color:${EGGS[G.stage].col}">${EGGS[G.stage].name}</b> sits in a nest on the sea floor. Take it and she comes for you right away.</p>`,
-  [{label:"Dive",fn:startStage},{label:"Back",cls:"link",fn:dockMenu}])}
+function dockMenu(){G.mode="menu";const sq=squad();
+  const rows=STAGES.map((s,i)=>`<div class="row ${i<=SV.best+1?"":"dim"}"><span><span class="t">${i+1}. ${s.name}</span> <span class="d">${s.depth}</span><br><span class="d">Grab ${s.quota} eggs · ${s.value} each · nest: <span style="color:${EGGS[i].col}">${EGGS[i].name}</span></span></span>
+    <span class="tag ${s.boss?"bad":"d"}">${s.boss?"BOSS":i<=SV.best?"reached":"—"}</span></div>`).join("");
+  const sqRows=sq.length?sq.map(f=>`<div class="row"><span><span class="t" style="color:${EGGS[f.t].col}">${FISH[f.t].name}</span><br><span class="d">Bites for ${FISH[f.t].dmg} damage</span></span><span class="tag bad">fighter</span></div>`).join("")
+    :`<div class="row"><span class="d">No fighters yet. About half of your eggs hatch into fighters. Without them you can only dodge Mother.</span><span></span></div>`;
+  show(`<div class="eyebrow">Dive Dock</div><h2>Start a run</h2><p>Every run starts in the Shallows. After each stage, surface at the boat to bank your loot or take the whirlpool deeper.</p>
+   <div class="list">${rows}</div><h3>Your squad (${sq.length}/${1+SV.up.squad})</h3><div class="list">${sqRows}</div>`,
+   [{label:"Start run",fn:startRun},{label:"Stay on the island",cls:"link",fn:closeMenu}])}
 
 /* ================= dive logic ================= */
-function attachBaby(b){b.f=makeFish(b.r*3.6,b.col,{fin:b.gold?"#ffb703":undefined,glow:.15+S().dark*.6});babyG.add(b.f.g)}
+function attachBaby(b){const g=b.gold?makeEggC("#ffd166","#ffb703",b.r*1.25,.5):makeEggC(EGGS[G.stage].col,EGGS[G.stage].spot,b.r*1.15,.2+S().dark*.6);b.f={g};babyG.add(g)}
 function spawnBaby(edge){const s=S();const gold=Math.random()<.12;let x,y;
   if(edge){x=Math.random()<.5?-20:W+20;y=rand(SURF+60,H-60)}else{x=rand(40,W-40);y=rand(SURF+80,H-60)}
-  const b={x,y,z:rand(-25,25),a:rand(0,6.28),vx:0,vy:0,r:gold?11:9,gold,col:gold?"#ffd166":BABY_COLORS[(Math.random()*6)|0],ph:rand(0,6),spd:s.bSpd*rand(.85,1.15)*(gold?1.25:1)};
+  const b={x,y,z:rand(-25,25),a:rand(0,6.28),vx:0,vy:0,r:gold?11:9,gold,ph:rand(0,6),spd:s.bSpd*rand(.85,1.15)*(gold?1.25:1)};
   attachBaby(b);return b}
+function placePortal(){portal={x:nest.x<W/2?W*.84:W*.16,y:H-80}}
+function startRun(){RUN={haul:0,eggs:[],bosses:0,drove:0};G.lives=1+SV.up.shield;
+  comp=squad().map((it,i)=>({t:it.t,x:W/2,y:SURF+60,vx:0,vy:0,cd:0,ph:rand(0,6),i}));
+  G.stage=0;startStage()}
 function startStage(){const s=S();
   Object.assign(P,{x:W/2,y:SURF+90,vx:0,vy:0,a:Math.PI/2,dash:0,cd:0,inv:1.5,carry:null});
   clearGroup(babyG);babies=[];for(let i=0;i<s.babies;i++)babies.push(spawnBaby(false));
-  mom={state:"away",t:rand(...s.calm),x:-300,y:H/2,vx:0,vy:0,a:0,edge:0,r:58+G.stage*7,ph:0,mouth:0,ex:0,ey:0,enraged:false};
-  nest={x:rand(W*.15,W*.85),y:H-30};if(Math.abs(nest.x-W/2)<60)nest.x+=120;
-  parts=[];G.haul=0;G.count=0;G.gold=0;G.t=0;G.egg="nest";G.lives=1+SV.up.shield;
+  const boss=!!s.boss;
+  mom={state:"away",t:rand(...s.calm)*(boss?.7:1),x:-300,y:H/2,vx:0,vy:0,a:0,edge:0,r:(58+G.stage*7)*(boss?1.3:1),ph:0,mouth:0,ex:0,ey:0,enraged:false,
+    hp:0,max:Math.round((14+G.stage*14)*(boss?3:1)),stun:0,gone:false,boss,met:false};mom.hp=mom.max;
+  nest={x:rand(W*.2,W*.8),y:H-30};if(Math.abs(nest.x-W/2)<60)nest.x+=120;placePortal();
+  comp.forEach(c=>{c.x=P.x-30;c.y=P.y-20});
+  parts=[];G.count=0;G.gold=0;G.t=0;G.egg="nest";
+  if(G.stage>SV.unlocked)SV.unlocked=G.stage;if(G.stage>SV.best)SV.best=G.stage;persist();
   setView("dive");buildDive();
-  G.mode="dive";$("overlay").hidden=true;$("hudDive").hidden=false;$("hudLobby").hidden=true;updHud();toast(s.name,"#e8fbff")}
+  G.mode="dive";$("overlay").hidden=true;$("hudDive").hidden=false;$("hudLobby").hidden=true;updHud();
+  toast(`${G.stage+1}. ${s.name}${s.boss?" · BOSS":""}`,s.boss?"#ff3b5c":"#e8fbff")}
 
 function movePlayer(dt,maxS,bx0,by0,bx1,by1){let ax=0,ay=0;
   if(keys.KeyA||keys.ArrowLeft)ax-=1;if(keys.KeyD||keys.ArrowRight)ax+=1;if(keys.KeyW||keys.ArrowUp)ay-=1;if(keys.KeyS||keys.ArrowDown)ay+=1;
@@ -456,59 +488,77 @@ function movePlayer(dt,maxS,bx0,by0,bx1,by1){let ax=0,ay=0;
   const sp=Math.hypot(P.vx,P.vy);if(sp>20)P.a=Math.atan2(P.vy,P.vx);P.kick+=dt*(2+sp/30);
   P.dash=Math.max(0,P.dash-dt);P.cd=Math.max(0,P.cd-dt);P.inv=Math.max(0,P.inv-dt);return sp}
 
+function hitMom(dmg,c){if(mom.gone||mom.hp<=0)return;mom.hp-=dmg;mom.stun=.25;sfx.hit();spark(c.x,c.y,EGGS[c.t].col,6);
+  if(mom.hp<=0){mom.hp=0;const s=S();const bonus=s.value*(mom.boss?30:8);RUN.haul+=bonus;RUN.drove++;
+    if(mom.boss){RUN.bosses++;RUN.eggs.push(G.stage);sfx.win();toast(`${s.boss} defeated! +${fmt(bonus)} and a bonus ${EGGS[G.stage].name}`,"#ffd166")}
+    else{sfx.clear();toast(`You drove her off! +${fmt(bonus)}`,"#7fe0a8")}
+    mom.state="leave";mom.gone=true;shake=.5;updHud()}}
+function updateComp(dt){const hunting=mom.state==="hunt"&&!mom.gone&&mom.x>-60&&mom.x<W+60&&mom.y<H+60;
+  comp.forEach((c,i)=>{c.ph+=dt*10;c.cd-=dt;let tx,ty,spd=300;const a=i*2.1+G.t*1.6;
+    if(hunting&&Math.hypot(mom.x-P.x,mom.y-P.y)<380){tx=mom.x+Math.cos(a*2)*mom.r*.35;ty=mom.y+Math.sin(a*2)*mom.r*.25;spd=430;
+      if(Math.hypot(c.x-mom.x,c.y-mom.y)<mom.r*.95&&c.cd<=0){c.cd=.7;hitMom(FISH[c.t].dmg,c)}}
+    else{tx=P.x+Math.cos(a)*46;ty=P.y+Math.sin(a)*32}
+    const dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy)||1,v=Math.min(spd,d*5);
+    c.vx+=(dx/d*v-c.vx)*Math.min(1,6*dt);c.vy+=(dy/d*v-c.vy)*Math.min(1,6*dt);c.x+=c.vx*dt;c.y+=c.vy*dt;
+    c.y=Math.max(SURF+10,Math.min(H-20,c.y))})}
 function updateDive(dt){const s=S();G.t+=dt;
   const sp=movePlayer(dt,pSpeed()*(G.egg==="carried"?.88:1),14,SURF+4,W-14,H-24);
   if(Math.random()<dt*(3+sp/60))bubble(P.x+Math.cos(P.a)*14,P.y-8);
-  for(const b of babies){b.ph+=dt*8;b.a+=rand(-2,2)*dt;let tx=Math.cos(b.a)*b.spd,ty=Math.sin(b.a)*b.spd;
+  for(const b of babies){b.ph+=dt*3;b.a+=rand(-2,2)*dt;let tx=Math.cos(b.a)*b.spd,ty=Math.sin(b.a)*b.spd;
     const dx=b.x-P.x,dy=b.y-P.y,d=Math.hypot(dx,dy)||1;
-    if(s.flee&&d<s.flee){const f=(1-d/s.flee)*b.spd*1.6;tx+=dx/d*f;ty+=dy/d*f;b.a=Math.atan2(ty,tx)}
+    if(s.flee&&d<s.flee){const f=(1-d/s.flee)*b.spd*1.4;tx+=dx/d*f;ty+=dy/d*f;b.a=Math.atan2(ty,tx)}
     if(b.x<30)tx+=80;if(b.x>W-30)tx-=80;if(b.y<SURF+50)ty+=80;if(b.y>H-50)ty-=80;
     b.vx+=(tx-b.vx)*Math.min(1,3*dt);b.vy+=(ty-b.vy)*Math.min(1,3*dt);b.x+=b.vx*dt;b.y+=b.vy*dt;
-    if(d<b.r+16){b.dead=1;G.count++;if(b.gold){G.gold++;G.haul+=s.value*3;sfx.gold();spark(b.x,b.y,"#ffd166")}else{G.haul+=s.value;sfx.grab();spark(b.x,b.y,b.col)}
-      if(mom.state==="away")mom.t=Math.max(.3,mom.t-1);
-      if(G.count===s.quota)toast("Quota met! Swim up to the boat","#7fe0a8");updHud()}}
+    if(d<b.r+18){b.dead=1;G.count++;if(b.gold){G.gold++;RUN.haul+=s.value*3;sfx.gold();spark(b.x,b.y,"#ffd166")}else{RUN.haul+=s.value;sfx.grab();spark(b.x,b.y,EGGS[G.stage].col)}
+      if(mom.state==="away"&&!mom.gone)mom.t=Math.max(.3,mom.t-1);
+      if(G.count===s.quota)toast(G.stage<5?"Quota met! Boat = keep loot · Whirlpool = go deeper":"Quota met! Swim up to the boat","#7fe0a8");updHud()}}
   babies=babies.filter(b=>{if(b.dead)babyG.remove(b.f.g);return !b.dead});while(babies.length<s.babies)babies.push(spawnBaby(true));
-  if(G.egg==="nest"&&Math.hypot(P.x-nest.x,P.y-(nest.y-12))<30){G.egg="carried";sfx.egg();spark(nest.x,nest.y-12,EGGS[G.stage].col);toast("You took her egg! RUN","#ff3b5c");
-    mom.enraged=true;if(mom.state==="away"||mom.state==="leave"){if(mom.state==="leave"){mom.state="hunt";mom.t=s.hunt}else{mom.state="away";mom.t=0}}else if(mom.state==="hunt")mom.t+=3;updHud()}
-  mom.ph+=dt*(mom.state==="hunt"?7:4);mom.t-=dt;
-  const mSpd=s.mSpd*(mom.enraged&&G.egg==="carried"?1.08:1);
+  if(G.egg==="nest"&&Math.hypot(P.x-nest.x,P.y-(nest.y-12))<32){G.egg="carried";sfx.egg();spark(nest.x,nest.y-12,EGGS[G.stage].col);
+    if(!mom.gone){toast("You took her egg! RUN","#ff3b5c");mom.enraged=true;if(mom.state==="away"){mom.t=0}else if(mom.state==="leave"){mom.state="hunt";mom.t=s.hunt}else if(mom.state==="hunt")mom.t+=3}
+    else toast("Her egg is yours","#7fe0a8");updHud()}
+  updateMom(dt,s);if(G.mode!=="dive")return;
+  updateComp(dt);
+  const done=G.count>=s.quota;
+  if(done&&P.y<SURF+22&&Math.abs(P.x-W/2)<90){surfaceRun();return}
+  if(done&&G.stage<5&&Math.hypot(P.x-portal.x,P.y-portal.y)<46){goDeeper();return}
+  stepParts(dt);updMom()}
+function updateMom(dt,s){mom.ph+=dt*(mom.state==="hunt"?7:4);mom.t-=dt;mom.stun=Math.max(0,mom.stun-dt);
+  if(mom.gone&&mom.state==="away")return;
+  const mSpd=s.mSpd*(mom.enraged&&G.egg==="carried"?1.08:1)*(mom.stun>0?.35:1);
   if(mom.state==="away"&&mom.t<=0){mom.state="warn";mom.t=mom.enraged&&G.egg==="carried"?Math.min(1,s.warn):s.warn;mom.edge=(Math.random()*3)|0;
-    mom.ex=mom.edge===0?0:mom.edge===1?W:rand(W*.2,W*.8);mom.ey=mom.edge===2?H:rand(SURF+80,H-80);sfx.warn();if(G.egg!=="carried")toast("She's coming!","#ff3b5c")}
-  else if(mom.state==="warn"&&mom.t<=0){mom.state="hunt";mom.t=s.hunt+(G.egg==="carried"?4:0);
+    mom.ex=mom.edge===0?0:mom.edge===1?W:rand(W*.2,W*.8);mom.ey=mom.edge===2?H:rand(SURF+80,H-80);sfx.warn();
+    if(mom.boss&&!mom.met){mom.met=true;toast(`BOSS: ${s.boss} is coming!`,"#ff3b5c")}else if(G.egg!=="carried")toast("She's coming!","#ff3b5c")}
+  else if(mom.state==="warn"&&mom.t<=0){mom.state="hunt";mom.t=s.hunt*(mom.boss?1.6:1)+(G.egg==="carried"?4:0);
     mom.x=mom.edge===0?-mom.r*2:mom.edge===1?W+mom.r*2:mom.ex;mom.y=mom.edge===2?H+mom.r*2:mom.ey;
     const a=Math.atan2(P.y-mom.y,P.x-mom.x);mom.vx=Math.cos(a)*mSpd;mom.vy=Math.sin(a)*mSpd}
   else if(mom.state==="hunt"||mom.state==="leave"){let tx,ty,spd=mSpd;
     if(mom.state==="hunt"){tx=P.x+P.vx*.2;ty=P.y+P.vy*.2;if(Math.hypot(P.x-mom.x,P.y-mom.y)<200)spd*=1.25;
       if(mom.t<=0){mom.state="leave";toast("She's leaving...","#7fe0a8")}}
-    else{tx=mom.x<W/2?-600:W+600;ty=mom.y+200;spd*=1.1;
-      if(mom.x<-mom.r*3||mom.x>W+mom.r*3||mom.y>H+mom.r*3){mom.state="away";mom.t=rand(...s.calm)*(G.egg==="carried"?.5:1)}}
+    else{tx=mom.x<W/2?-600:W+600;ty=mom.y+200;spd*=mom.gone?1.5:1.1;
+      if(mom.x<-mom.r*3||mom.x>W+mom.r*3||mom.y>H+mom.r*3){mom.state="away";mom.t=rand(...s.calm)*(G.egg==="carried"?.5:1)*(mom.boss?.7:1)}}
     const dx=tx-mom.x,dy=ty-mom.y,d=Math.hypot(dx,dy)||1;
     mom.vx+=(dx/d*spd-mom.vx)*Math.min(1,s.turn*dt);mom.vy+=(dy/d*spd-mom.vy)*Math.min(1,s.turn*dt);
     mom.x+=mom.vx*dt;mom.y+=mom.vy*dt;if(mom.y<SURF+mom.r*.5){mom.y=SURF+mom.r*.5;mom.vy=Math.abs(mom.vy)}
     mom.a=Math.atan2(mom.vy,mom.vx);
     const hx=mom.x+Math.cos(mom.a)*mom.r*.55,hy=mom.y+Math.sin(mom.a)*mom.r*.55,hd=Math.hypot(P.x-hx,P.y-hy);
     mom.mouth+=((mom.state==="hunt"&&hd<220?1:0)-mom.mouth)*Math.min(1,6*dt);
-    if(mom.state==="hunt"&&P.inv<=0&&hd<mom.r*.55+12){bitten();return}}
-  if(G.count>=s.quota&&P.y<SURF+22&&Math.abs(P.x-W/2)<90){clearStage();return}
-  stepParts(dt);updMom()}
+    if(mom.state==="hunt"&&P.inv<=0&&hd<mom.r*.55+12)bitten()}}
 function stepParts(dt){for(const p of parts){p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.kind==="s"){p.vx*=.92;p.vy*=.92}if(p.kind==="b"&&view==="dive"&&p.y<SURF)p.t=p.life}
   parts=parts.filter(p=>p.t<p.life);shake=Math.max(0,shake-dt*2);flash=Math.max(0,flash-dt*2)}
 function bitten(){G.lives--;sfx.chomp();shake=1;flash=1;spark(P.x,P.y,"#ff3b5c");
   if(G.egg==="carried"){G.egg="nest";toast("You dropped the egg!","#ff3b5c")}
   if(G.lives>0){P.inv=2.2;mom.state="leave";if(G.egg!=="carried")toast("The cage held! One bite used","#ffd166");updHud();return}
-  G.mode="chomp";updHud();setTimeout(()=>{G.mode="menu";
-    show(`<div class="eyebrow bad">Swallowed</div><h2>Mother got you</h2><p>You lost this dive's haul and the egg is back in her nest. Your base and coins are safe.</p>`,
-    [{label:"Back to the island",fn:enterLobby},{label:"Dive again",cls:"link",fn:stageIntro}])},900)}
-function clearStage(){const s=S();G.mode="menu";sfx.clear();
-  const base=(G.count-G.gold)*s.value,gold=G.gold*s.value*3,speed=Math.max(0,Math.round((60-G.t)*s.value/10));
-  const total=base+gold+speed;SV.coins+=total;SV.cleared[G.stage]=true;
-  const newUnlock=G.stage===SV.unlocked&&SV.unlocked<5;if(newUnlock)SV.unlocked++;
-  const gotEgg=G.egg==="carried";persist();
-  show(`<div class="eyebrow good">Surfaced · Stage ${G.stage+1} clear</div><h2>${G.stage===5?"You robbed the Abyss":s.name+" cleared"}</h2>
-  <div class="stats"><div class="stat"><span class="lbl">Fish ${G.count-G.gold}</span><b>${fmt(base)}</b></div><div class="stat"><span class="lbl">Gold ${G.gold}</span><b class="goldt">${fmt(gold)}</b></div><div class="stat"><span class="lbl">Speed</span><b>${fmt(speed)}</b></div></div>
-  <p>+${fmt(total)} coins.${gotEgg?` You also brought home a <b style="color:${EGGS[G.stage].col}">${EGGS[G.stage].name}</b> (${EGGS[G.stage].rate} coins/s).`:" You left her egg behind."}</p>
-  ${newUnlock?`<p class="good">${STAGES[SV.unlocked].name} unlocked. Snapjaw's eggs just got better too.</p>`:""}`,
-  [{label:"Back to the island",fn:()=>{enterLobby();if(gotEgg)addEgg(G.stage)}}])}
+  G.mode="chomp";updHud();const lost=RUN.haul,eggs=RUN.eggs.length;setTimeout(()=>{G.mode="menu";
+    show(`<div class="eyebrow bad">Swallowed at ${S().depth}</div><h2>Run lost</h2><p>Mother got you. You lost ${fmt(lost)} coins of loot${eggs?` and ${eggs} egg${eggs>1?"s":""}`:""} from this run. Your base, fish and coins are safe.</p>`,
+    [{label:"Back to the island",fn:enterLobby}])},900)}
+function leaveStage(){const s=S();RUN.haul+=Math.max(0,Math.round((60-G.t)*s.value/10));if(G.egg==="carried")RUN.eggs.push(G.stage)}
+function goDeeper(){leaveStage();sfx.whoosh();G.stage++;flash=0;startStage()}
+function surfaceRun(){leaveStage();G.mode="menu";sfx.clear();const r=RUN;SV.coins+=r.haul;persist();
+  const eggTxt=r.eggs.length?r.eggs.map(t=>`<span style="color:${EGGS[t].col}">${EGGS[t].name}</span>`).join(", "):"none";
+  show(`<div class="eyebrow good">Surfaced from ${S().depth}</div><h2>${G.stage===5?"You robbed the Abyss":"Run banked"}</h2>
+  <div class="stats"><div class="stat"><span class="lbl">Deepest</span><b>${G.stage+1}/6</b></div><div class="stat"><span class="lbl">Coins</span><b class="goldt">+${fmt(r.haul)}</b></div><div class="stat"><span class="lbl">Mothers beaten</span><b>${r.drove}</b></div></div>
+  <p>Eggs brought home: ${eggTxt}.</p>${r.bosses?`<p class="goldt">Bosses defeated: ${r.bosses}</p>`:""}`,
+  [{label:"Back to the island",fn:()=>{enterLobby();r.eggs.forEach((t,i)=>addEgg(t,i<r.eggs.length-1))}}])}
 
 /* ================= lobby logic ================= */
 function updateLobby(dt){const I=LY.isl;const carrying=P.carry!=null;
@@ -533,15 +583,17 @@ function updateLobby(dt){const I=LY.isl;const carrying=P.carry!=null;
 
 /* ================= HUD ================= */
 let hudT=0;
-function updLobbyHud(){$("lCoins").textContent=fmt(SV.coins);$("lRate").textContent=fmt(rate())+"/s";$("lEggs").textContent=`${SV.base.length}/${slots()}`}
+function updLobbyHud(){$("lCoins").textContent=fmt(SV.coins);$("lRate").textContent=fmt(rate())+"/s";$("lEggs").textContent=`${SV.base.length}/${slots()}`;$("lFight").textContent=SV.base.filter(f=>f.fish==="fight").length}
 function updHud(){const s=S();$("hStage").textContent=`${G.stage+1} · ${s.name}`;$("hFish").textContent=`${G.count}/${s.quota}`;$("hFish").className=G.count>=s.quota?"good":"";
-  $("hHaul").textContent=fmt(G.haul);$("hEgg").textContent=G.egg==="carried"?"CARRYING":"at nest";$("hEgg").style.color=G.egg==="carried"?EGGS[G.stage].col:"";
+  $("hHaul").textContent=fmt(RUN?RUN.haul:0);
   $("lives").textContent="♥".repeat(Math.max(0,G.lives))+"♡".repeat(Math.max(0,1+SV.up.shield-G.lives))}
 function updMom(){const s=S(),f=$("momFill"),t=$("momTxt");
-  if(mom.state==="away"){const pct=1-mom.t/s.calm[1];f.style.width=Math.max(0,Math.min(1,pct))*100+"%";f.style.background=pct>.7?"#ffd166":"#7fe0a8";t.textContent="Calm";t.style.color="#7fe0a8"}
+  if(mom.gone){f.style.width="0%";t.textContent="Beaten";t.style.color="#ffd166"}
+  else if(mom.state==="away"){const pct=1-mom.t/s.calm[1];f.style.width=Math.max(0,Math.min(1,pct))*100+"%";f.style.background=pct>.7?"#ffd166":"#7fe0a8";t.textContent="Calm";t.style.color="#7fe0a8"}
   else if(mom.state==="warn"){f.style.width="100%";f.style.background="#ff3b5c";t.textContent="Coming";t.style.color="#ffd166"}
-  else if(mom.state==="hunt"){f.style.width=Math.max(0,mom.t/(s.hunt+4))*100+"%";f.style.background="#ff3b5c";t.textContent="HUNTING";t.style.color="#ff3b5c"}
-  else{f.style.width="0%";t.textContent="Leaving";t.style.color="#9fc4d6"}}
+  else if(mom.state==="hunt"){f.style.width=Math.max(0,mom.t/(s.hunt*1.6+4))*100+"%";f.style.background="#ff3b5c";t.textContent="HUNTING";t.style.color="#ff3b5c"}
+  else{f.style.width="0%";t.textContent="Leaving";t.style.color="#9fc4d6"}
+  $("hpChip").hidden=!comp.length;$("hpName").textContent=mom.boss?s.boss:"Her HP";$("hpFill").style.width=(mom.hp/mom.max*100)+"%"}
 
 /* ================= input ================= */
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),hit=new THREE.Vector3();
@@ -564,16 +616,22 @@ function renderLobby(now){
   const w=walker;w.g.position.copy(Lo(P.x,P.y,2));w.g.rotation.y=-P.a;const sp=Math.hypot(P.vx,P.vy);
   w.legs.forEach((l,i)=>l.rotation.z=Math.sin(P.kick*2+i*Math.PI)*Math.min(.7,sp/200));w.g.position.y+=Math.abs(Math.sin(P.kick*2))*Math.min(3,sp/60);
   w.g.visible=!blink()&&G.mode!=="title";
-  carrySlotL.set(P.carry);if(carrySlotL.m){carrySlotL.m.position.copy(Lo(P.x,P.y,84+Math.sin(now*5)*2));carrySlotL.m.userData.m.emissiveIntensity=.5+.3*Math.sin(now*6)}
+  const ce=carrySlotL.set(P.carry!=null?"e"+P.carry:"",()=>makeEgg(P.carry,13));if(ce){ce.position.copy(Lo(P.x,P.y,84+Math.sin(now*5)*2));ce.userData.m.emissiveIntensity=.5+.3*Math.sin(now*6)}
   const c=crabM;c.g.position.copy(Lo(crab.x,crab.y,2));const tgt=-(crab.face??Math.PI/2);let dr=tgt-c.g.rotation.y;dr=Math.atan2(Math.sin(dr),Math.cos(dr));c.g.rotation.y+=dr*.15;
   c.legs.forEach(l=>l.p.rotation.z=Math.sin(crab.ph+l.i*1.3+(l.s>0?0:Math.PI))*.35);
   const pinch=crab.state==="chase"?Math.abs(Math.sin(crab.ph*.7))*.5:.08;c.claws.forEach(p=>{p.userData.top.rotation.z=pinch;p.rotation.y=Math.sin(crab.ph*.3)*.2});
+  const nowMs=Date.now();
   LY.peds.forEach((p,i)=>{const open=i<slots();pedMeshes[i].material.color.set(open?"#c9b48a":"#7a7266");pedMeshes[i].material.opacity=open?1:.5;pedMeshes[i].material.transparent=!open;
-    const e=pedSlots[i].set(open?SV.base[i]:null);if(e){e.position.copy(Lo(p.x,p.y,34+Math.sin(now*2+i)*2));e.rotation.y=now*.6+i;e.userData.m.emissiveIntensity=.25+.15*Math.sin(now*3+i);
-      lab("pr"+i,`+${EGGS[SV.base[i]].rate}/s`,Lo(p.x,p.y,52),lCam,"sm","#ffd166")}
-    else if(!open)lab("pr"+i,"locked",Lo(p.x,p.y,20),lCam,"sm","#ffffff88")});
-  LY.rpeds.forEach((p,i)=>{const t=SV.rival[i];const e=rivalSlots[i].set(t);
-    if(e){e.position.copy(Lo(p.x,p.y,34+Math.sin(now*2+i)*2));e.rotation.y=now*.6;lab("rv"+i,EGGS[t].name,Lo(p.x,p.y,56),lCam,"sm",EGGS[t].col)}
+    const it=open?SV.base[i]:null;
+    const key=it?`${it.t}:${it.fish||"egg"}`:"";
+    const m=pedSlots[i].set(key,()=>it.fish?makeFish(40+it.t*3,EGGS[it.t].col,{brow:it.fish==="fight",band:it.fish==="fight",shadow:true}).g:makeEgg(it.t,17));
+    if(!it){if(!open)lab("pr"+i,"locked",Lo(p.x,p.y,20),lCam,"sm","#ffffff88");return}
+    if(it.fish){const a=now*1.4+i;m.position.copy(Lo(p.x+Math.cos(a)*10,p.y+Math.sin(a)*8,38+Math.sin(now*3+i)*3));m.rotation.y=-a-Math.PI/2;
+      lab("pr"+i,`+${fmt(itemRate(it))}/s${it.fish==="fight"?" · fighter":""}`,Lo(p.x,p.y,64),lCam,"sm",it.fish==="fight"?"#ff8fa0":"#ffd166")}
+    else{const left=(it.at-nowMs)/1000;m.position.copy(Lo(p.x,p.y,34+Math.sin(now*2+i)*2));m.rotation.y=now*.6+i;m.rotation.z=left<10?Math.sin(now*30)*.2:0;
+      m.userData.m.emissiveIntensity=.25+.15*Math.sin(now*3+i);lab("pr"+i,`hatch ${mmss(left)}`,Lo(p.x,p.y,58),lCam,"sm","#e8fbff")}});
+  LY.rpeds.forEach((p,i)=>{const t=SV.rival[i];const e=rivalSlots[i].set(t!=null?"e"+t:"",()=>makeEgg(t,17));
+    if(e){e.position.copy(Lo(p.x,p.y,34+Math.sin(now*2+i)*2));e.rotation.y=now*.6;lab("rv"+i,EGGS[t].name,Lo(p.x,p.y,60),lCam,"sm",EGGS[t].col)}
     else lab("rv"+i,Math.max(0,Math.ceil((SV.restock[i]-Date.now())/1000))+"s",Lo(p.x,p.y,24),lCam,"sm","#ffffffcc")});
   ring.rotation.z=now*.8;ring.position.y=6+Math.sin(now*3)*2;water.position.y=-6+Math.sin(now*.8)*1.2;
   lab("base","YOUR BASE",Lo(LY.base.x+LY.base.w/2,LY.base.y,34),lCam,"big","#7fe0a8");
@@ -585,29 +643,35 @@ function renderLobby(now){
   const base=lCam.userData.base;if(base){lCam.position.copy(base);if(shake>0){lCam.position.x+=rand(-6,6)*shake;lCam.position.y+=rand(-6,6)*shake}}
   syncParts();R.render(lScene,lCam)}
 function renderDive(now){const s=S();
-  for(const b of babies)poseFish(b.f,b.x,b.y,Math.atan2(b.vy,b.vx),b.ph,b.z);
+  for(const b of babies){b.f.g.position.copy(D(b.x,b.y+Math.sin(b.ph)*3,b.z));b.f.g.rotation.set(Math.sin(b.ph*.7)*.5,b.ph*.6,Math.sin(b.ph)*.3)}
   const dm=diverM;dm.g.position.copy(D(P.x,P.y,0));dm.g.rotation.z=-P.a;dm.inner.rotation.x=Math.cos(P.a)<0?Math.PI:0;
   dm.fins.forEach((f,i)=>f.rotation.z=Math.sin(P.kick+i*Math.PI)*.4);dm.g.visible=!blink()&&G.mode!=="chomp";
-  carrySlotD.set(G.egg==="carried"?G.stage:null);if(carrySlotD.m){carrySlotD.m.position.copy(D(P.x,P.y-24,0));carrySlotD.m.userData.m.emissiveIntensity=.6+.3*Math.sin(now*6)}
-  nestSlot.set(G.egg==="nest"?G.stage:null);if(nestSlot.m){nestSlot.m.rotation.y=now*.5;nestSlot.m.userData.m.emissiveIntensity=.35+.25*Math.sin(now*3)+s.dark*.5}
+  const ce=carrySlotD.set(G.egg==="carried"?"e"+G.stage:"",()=>makeEgg(G.stage,10));if(ce){ce.position.copy(D(P.x,P.y-28,0));ce.userData.m.emissiveIntensity=.6+.3*Math.sin(now*6)}
+  const ne=nestSlot.set(G.egg==="nest"?"e"+G.stage:"",()=>makeEgg(G.stage,14));if(ne){ne.rotation.y=now*.5;ne.userData.m.emissiveIntensity=.35+.25*Math.sin(now*3)+s.dark*.5}
+  comp.forEach(c=>{poseFish(c.f,c.x,c.y,Math.atan2(c.vy,c.vx||.01),c.ph,12)});
   const mv=mom.state==="hunt"||mom.state==="leave";momM.g.visible=mv;
-  if(mv){poseFish(momM,mom.x,mom.y,mom.a,mom.ph,0);momM.mouth.scale.setScalar(Math.max(.01,mom.mouth));momM.eyeMat.emissiveIntensity=mom.state==="hunt"?1.6:.2}
-  boatG.userData.ring.visible=G.count>=s.quota;boatG.userData.ring.rotation.z=now;boatG.position.y=H/2-(SURF-6)+Math.sin(now*1.5)*2;boatG.rotation.z=Math.sin(now*1.1)*.03;
+  if(mv){poseFish(momM,mom.x,mom.y,mom.a,mom.ph,0);momM.mouth.scale.setScalar(Math.max(.01,mom.mouth));momM.eyeMat.emissiveIntensity=mom.state==="hunt"?1.6:.2;
+    momM.bodyMat.emissive.set(mom.stun>0?"#ff3b5c":"#000000");momM.bodyMat.emissiveIntensity=mom.stun>0?.5:0;
+    if(comp.length&&!mom.gone&&mom.state==="hunt")lab("mhp",`${mom.boss?s.boss+" ":""}${Math.ceil(mom.hp)}/${mom.max}`,D(mom.x,mom.y-mom.r*.9,0),dCam,"sm","#ff8fa0")}
+  const done=G.count>=s.quota;
+  boatG.userData.ring.visible=done;boatG.userData.ring.rotation.z=now;boatG.position.y=H/2-(SURF-6)+Math.sin(now*1.5)*2;boatG.rotation.z=Math.sin(now*1.1)*.03;
+  if(done)lab("surf","SURFACE",D(W/2,SURF+44,0),dCam,"","#7fe0a8");
+  whirl.visible=done&&G.stage<5;if(whirl.visible){whirl.children.forEach((t,i)=>{t.rotation.z=now*(1.5+i*.8)*(i%2?-1:1);t.rotation.x=Math.sin(now+i)*.3});lab("deep","DEEPER",D(portal.x,portal.y-62,0),dCam,"","#c59bff")}
   kelps.forEach(k=>k.segs.forEach((g,i)=>g.rotation.z=Math.sin(now*1.2+k.c+i*.5)*.07));
   if(mom.state==="warn"){const gx=mom.edge===0?0:mom.edge===1?W:mom.ex,gy=mom.edge===2?H:mom.ey;warnLight.position.copy(D(gx,gy,120));warnLight.intensity=2.5+2*Math.sin(now*14);
     lab("warn","!",D(Math.max(30,Math.min(W-30,gx)),Math.max(SURF+40,Math.min(H-40,gy)),0),dCam,"huge","#ffffff")}else warnLight.intensity=0;
-  if(G.egg==="nest"&&s.dark>.3)lab("nest","egg",D(nest.x,nest.y-40,0),dCam,"sm",EGGS[G.stage].col);
+  if(G.egg==="nest"&&s.dark>.3)lab("nest","her egg",D(nest.x,nest.y-44,0),dCam,"sm",EGGS[G.stage].col);
   const fx=(P.x-W/2)*.05,fy=(H/2-P.y)*.04;dCam.position.set(fx+(shake?rand(-8,8)*shake:0),fy+(shake?rand(-8,8)*shake:0),dDist);dCam.lookAt(fx*.4,fy*.4,0);
   syncParts();R.render(dScene,dCam)}
 
-let toastT=0;function toast(t,c){const el=$("toast");el.textContent=t;el.style.color=c;el.style.opacity=1;clearTimeout(toastT);toastT=setTimeout(()=>el.style.opacity=0,1600)}
+let toastT=0;function toast(t,c){const el=$("toast");el.textContent=t;el.style.color=c;el.style.opacity=1;clearTimeout(toastT);toastT=setTimeout(()=>el.style.opacity=0,1900)}
 
 /* ================= loop ================= */
 let last=performance.now(),saveT=0;
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
   SV.vault+=rate()*dt;
   if(G.mode==="lobby")updateLobby(dt);else if(G.mode==="dive")updateDive(dt);else if(G.mode==="chomp")stepParts(dt);
-  hudT-=dt;if(hudT<=0){hudT=.25;updLobbyHud();$("dash").classList.toggle("ready",P.cd<=0)}
+  hudT-=dt;if(hudT<=0){hudT=.25;if(view==="lobby")hatchCheck();updLobbyHud();$("dash").classList.toggle("ready",P.cd<=0)}
   saveT+=dt;if(saveT>5){saveT=0;persist()}
   $("flash").style.opacity=(flash*.45).toFixed(3);
   if(view==="dive"&&diveBuilt)renderDive(t);else renderLobby(t);labsDone();
