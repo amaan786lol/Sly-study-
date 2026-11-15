@@ -83,6 +83,13 @@ button:focus-visible{outline:3px solid var(--kelp);outline-offset:3px}
 #floorPick{position:absolute;left:max(16px,env(safe-area-inset-left,0px));display:flex;gap:4px;padding:4px;border-radius:12px;background:#04121fc4;border:1px solid #ffffff1f}
 #floorPick button{font:400 14px var(--f-display);border:0;border-radius:8px;padding:6px 10px;background:transparent;color:var(--muted);cursor:pointer}
 #floorPick button[aria-pressed="true"]{background:var(--kelp);color:#04121f}
+#uiToggle{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));z-index:2;width:36px;height:36px;border-radius:50%;
+  display:grid;place-items:center;background:#04121fb3;border:1px solid #ffffff2a;color:var(--foam);cursor:pointer;padding:0}
+#uiToggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hud{padding-right:max(62px,calc(env(safe-area-inset-right,0px) + 46px))!important}
+body.uiHidden .hud,body.uiHidden #bar,body.uiHidden #questPill,body.uiHidden #mini,body.uiHidden #floorPick,body.uiHidden #labels{display:none!important}
+body.uiHidden #uiToggle{opacity:.55}
+body.menuOpen #uiToggle{display:none}body.uiHidden #uiToggle:hover{opacity:1}
 #mini{position:absolute;right:max(16px,env(safe-area-inset-right,0px));border-radius:12px;border:1px solid #ffffff22;background:#04121fb3;pointer-events:none}
 .qrow .qb{height:6px;border-radius:3px;background:#ffffff1a;overflow:hidden;margin-top:6px}.qrow .qb i{display:block;height:100%;background:var(--gold)}
 .dex{display:grid;grid-template-columns:auto repeat(5,1fr);gap:4px;width:100%;font-size:10px;align-items:center}
@@ -125,6 +132,7 @@ button:focus-visible{outline:3px solid var(--kelp);outline-offset:3px}
   <button id="questPill" type="button" hidden></button>
   <canvas id="mini" hidden></canvas>
   <div id="floorPick" hidden></div>
+  <button id="uiToggle" type="button" aria-label="Hide the UI" title="Hide UI (H)"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
   <nav id="bar" hidden aria-label="Island menu">
     <button type="button" data-bar="shop"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg><span class="t">Shop</span></button>
     <button type="button" data-bar="forge"><svg viewBox="0 0 24 24"><path d="M4 9h11l-2 4H8z"/><path d="M15 9h5"/><path d="M10 13v4M7 20h7"/></svg><span class="t">Forge</span></button>
@@ -457,7 +465,7 @@ function weatherFx(now){const dt=Math.min(.05,now-lastFx||0);lastFx=now;const w=
   if(boltT>0){boltT-=dt;hemi.intensity=1.6;$("flash").style.background="#e8f4ff";flash=Math.max(flash,.35)}else $("flash").style.background=""}
 function fitLobbyCam(){lCam.aspect=cw/ch;lCam.clearViewOffset();const I=LY.isl;
   const B=LY.base,pts=[[I.x,I.y],[I.x+I.w,I.y],[I.x,I.y+I.h],[I.x+I.w,I.y+I.h]].flatMap(([x,y])=>[Lo(x,y,0),Lo(x,y,30)]).concat([[B.x,B.y],[B.x+B.w,B.y]].map(([x,y])=>Lo(x,y,(floors()-1)*FH+60)));
-  const hudH=(G.mode==="title"?56:($("hudLobby").offsetHeight||56))+($("questPill").offsetHeight||40)+(floors()>1&&G.mode!=="title"?50:0)+12;const topLim=1-Math.min(.5,(hudH*2)/ch),botLim=-1+Math.min(.3,(86*2)/ch),xLim=.95;let dist=Math.max(W,H)*1.1;const lookZ=H*.06;
+  const hudH=document.body.classList.contains("uiHidden")?40:(G.mode==="title"?56:($("hudLobby").offsetHeight||56))+($("questPill").offsetHeight||40)+(floors()>1&&G.mode!=="title"?50:0)+12;const topLim=1-Math.min(.5,(hudH*2)/ch),botLim=-1+Math.min(.3,((document.body.classList.contains("uiHidden")?20:86)*2)/ch),xLim=.95;let dist=Math.max(W,H)*1.1;const lookZ=H*.06;
   const tilt=LY.land?.62:.42;
   for(let k=0;k<8;k++){lCam.position.set(0,dist,dist*tilt+lookZ);lCam.lookAt(0,0,lookZ);lCam.updateProjectionMatrix();lCam.updateMatrixWorld();
     let mx=0,ymn=9,ymx=-9;for(const p of pts){_v.copy(p).project(lCam);mx=Math.max(mx,Math.abs(_v.x));ymn=Math.min(ymn,_v.y);ymx=Math.max(ymx,_v.y)}
@@ -543,11 +551,11 @@ addEventListener("resize",resize);
 function setView(v){view=v;(v==="dive"?dScene:lScene).add(partG)}
 function enterLobby(){G.mode="lobby";setView("lobby");chrome(true);Object.assign(P,{x:LY.spawn.x,y:LY.spawn.y,vx:0,vy:0,a:-Math.PI/2,dash:0,cd:0,inv:0,carry:null,pad:"spawn"});
   crab.x=LY.rival.x+LY.rival.w/2;crab.y=LY.rival.y+LY.rival.h/2;crab.state="patrol";crab.tx=crab.x;crab.ty=crab.y;parts=[];
-  $("overlay").hidden=true;$("hudLobby").hidden=false;$("hudDive").hidden=true;updLobbyHud();persist()}
+  $("overlay").hidden=true;document.body.classList.remove("menuOpen");$("hudLobby").hidden=false;$("hudDive").hidden=true;updLobbyHud();persist()}
 function show(html,btns){$("card").innerHTML=html+(btns||[]).map((b,i)=>`<button class="${b.cls||"go"}" data-b="${i}" type="button">${b.label}</button>`).join("");
-  $("overlay").hidden=false;(btns||[]).forEach((b,i)=>{$("card").querySelector(`[data-b="${i}"]`).onclick=()=>{audio();b.fn()}});
+  $("overlay").hidden=false;document.body.classList.add("menuOpen");(btns||[]).forEach((b,i)=>{$("card").querySelector(`[data-b="${i}"]`).onclick=()=>{audio();b.fn()}});
   $("overlay").scrollTop=0;const f=$("card").querySelector(".go");if(f)setTimeout(()=>f.focus({preventScroll:true}),50)}
-function closeMenu(){$("overlay").hidden=true;G.mode="lobby"}
+function closeMenu(){$("overlay").hidden=true;document.body.classList.remove("menuOpen");G.mode="lobby"}
 function titleScreen(){G.mode="title";setView("lobby");chrome(false);$("hudLobby").hidden=true;$("hudDive").hidden=true;
   show(`<div class="eyebrow">Egg heist on a fish island</div><h1>Mother's Reef</h1>
   <p>Steal eggs, hatch them into fish, and build a squad strong enough to fight the mothers of the deep.</p>
@@ -722,6 +730,13 @@ function updChrome(){const on=G.mode==="lobby"||G.mode==="menu"&&view==="lobby";
   const mini=$("mini");mini.style.top=top+"px";mini.hidden=!(on&&SET.minimap&&LY&&LY.land&&!$("bar").hidden);
   $("dexBadge").hidden=!dexNew;$("dexBadge").textContent=dexNew;}
 $("questPill").onclick=()=>{audio();questMenu()};
+const EYE_ON='<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+      EYE_OFF='<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+function toggleUI(force){const hide=force!=null?force:!document.body.classList.contains("uiHidden");document.body.classList.toggle("uiHidden",hide);
+  const b=$("uiToggle");b.innerHTML=hide?EYE_OFF:EYE_ON;b.setAttribute("aria-label",hide?"Show the UI":"Hide the UI");b.title=hide?"Show UI (H)":"Hide UI (H)";
+  if(view==="lobby"&&LY)fitLobbyCam();if(!hide)updChrome()}
+$("uiToggle").onclick=()=>{audio();toggleUI()};
+addEventListener("keydown",e=>{if(e.code==="KeyH"&&!/INPUT|TEXTAREA/.test((e.target&&e.target.tagName)||"")&&!e.repeat)toggleUI()});
 document.querySelectorAll("[data-bar]").forEach(b=>b.onclick=()=>{audio();if(G.mode!=="lobby")return;if(P.carry!=null&&b.dataset.bar!=="book"&&b.dataset.bar!=="quests"&&b.dataset.bar!=="settings"){toast("Bring the egg to your base first","#ffd166");return}
   P.vx=P.vy=0;pointer.active=false;({shop:shopMenu,forge:()=>forgeMenu("tools"),dive:dockMenu,book:bookMenu,quests:questMenu,settings:settingsMenu})[b.dataset.bar]()});
 const miniC=$("mini"),mctx=miniC.getContext("2d");let miniT=0;
@@ -790,7 +805,7 @@ function startStage(){const s=S();
   parts=[];G.count=0;G.gold=0;G.t=0;G.egg="nest";
   quest("stage",G.stage+1,true);if(G.stage>SV.unlocked)SV.unlocked=G.stage;if(G.stage>SV.best)SV.best=G.stage;persist();
   setView("dive");buildDive();
-  G.mode="dive";chrome(false);$("overlay").hidden=true;$("hudDive").hidden=false;$("hudLobby").hidden=true;updHud();
+  G.mode="dive";chrome(false);$("overlay").hidden=true;document.body.classList.remove("menuOpen");$("hudDive").hidden=false;$("hudLobby").hidden=true;updHud();
   toast(`${G.stage+1}. ${s.name}${s.boss?" · BOSS":""}`,s.boss?"#ff3b5c":"#e8fbff")}
 
 function movePlayer(dt,maxS,bx0,by0,bx1,by1){let ax=0,ay=0;
