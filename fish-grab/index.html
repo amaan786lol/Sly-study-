@@ -155,18 +155,27 @@ const STAGES=[
  {name:"Kelp Forest",    depth:"30 m",  value:50, quota:8, babies:9, bSpd:70, flee:65, calm:[7,9],  warn:2.0,hunt:8, mSpd:165,turn:2.0,dark:.2, top:"#1f8aa6",bot:"#08405e",sand:"#9c8a66",boss:"Kelp Matriarch"},
  {name:"Open Blue",      depth:"80 m",  value:100,quota:10,babies:10,bSpd:82, flee:80, calm:[5.5,7],warn:1.8,hunt:9, mSpd:185,turn:2.2,dark:.35,top:"#166d93",bot:"#052b45",sand:"#6e6450"},
  {name:"Twilight Zone",  depth:"300 m", value:250,quota:12,babies:11,bSpd:95, flee:90, calm:[4,5.5],warn:1.5,hunt:10,mSpd:200,turn:2.4,dark:.7, top:"#0d3d5f",bot:"#03172a",sand:"#2a3038"},
- {name:"The Abyss",      depth:"1,000 m",value:500,quota:14,babies:12,bSpd:108,flee:100,calm:[3,4], warn:1.2,hunt:12,mSpd:215,turn:2.6,dark:.88,top:"#071f33",bot:"#010812",sand:"#151a22",boss:"Abyss Queen"}
+ {name:"The Abyss",      depth:"1,000 m",value:500,quota:14,babies:12,bSpd:108,flee:100,calm:[3,4], warn:1.2,hunt:12,mSpd:215,turn:2.6,dark:.88,top:"#071f33",bot:"#010812",sand:"#151a22",boss:"Abyss Queen"},
+ {name:"Hydrothermal Vents",depth:"2,500 m",value:1000,quota:15,babies:12,bSpd:115,flee:105,calm:[3,4],warn:1.2,hunt:12,mSpd:222,turn:2.7,dark:.8, top:"#3a1a10",bot:"#0a0302",sand:"#2a1a14",deco:"vents"},
+ {name:"Frozen Trench",   depth:"4,000 m",value:2000,quota:16,babies:13,bSpd:122,flee:110,calm:[2.8,3.6],warn:1.1,hunt:13,mSpd:230,turn:2.8,dark:.62,top:"#2a5a7a",bot:"#06141f",sand:"#cfe8f5",boss:"Frost Matron",deco:"ice"},
+ {name:"Sunken City",     depth:"6,000 m",value:4000,quota:17,babies:13,bSpd:128,flee:115,calm:[2.6,3.4],warn:1.0,hunt:13,mSpd:238,turn:2.9,dark:.86,top:"#1a3a3a",bot:"#031010",sand:"#3a3a30",deco:"ruins"},
+ {name:"Hadal Core",      depth:"11,000 m",value:8000,quota:18,babies:14,bSpd:135,flee:120,calm:[2.4,3],warn:.9,hunt:15,mSpd:246,turn:3.0,dark:.92,top:"#1a0a2a",bot:"#05000a",sand:"#120818",boss:"Hadal Empress",deco:"crystals"}
 ];
+const LAST=STAGES.length-1;
 const EGGS=[
  {name:"Shallow Egg", rate:2,  col:"#f6e7c1",spot:"#c9944a"},
  {name:"Reef Egg",    rate:6,  col:"#ff9f68",spot:"#ffe08a"},
  {name:"Kelp Egg",    rate:15, col:"#7fe0a8",spot:"#24774a"},
  {name:"Blue Egg",    rate:40, col:"#5fb8ff",spot:"#e8fbff"},
  {name:"Twilight Egg",rate:110,col:"#c59bff",spot:"#3a1d6e"},
- {name:"Abyss Egg",   rate:300,col:"#ff3b5c",spot:"#2a0008"}
+ {name:"Abyss Egg",   rate:300,col:"#ff3b5c",spot:"#2a0008"},
+ {name:"Vent Egg",    rate:800,  col:"#ff8a3a",spot:"#3a1004"},
+ {name:"Frost Egg",   rate:2000, col:"#d8f4ff",spot:"#6ab8e8"},
+ {name:"Ruin Egg",    rate:5000, col:"#c9b46a",spot:"#5a4a2a"},
+ {name:"Hadal Egg",   rate:12000,col:"#8a4aff",spot:"#f0e0ff"}
 ];
-const FISH=[{name:"Sandminnow",dmg:1},{name:"Reef Snapper",dmg:2},{name:"Kelp Pike",dmg:3},{name:"Blue Barracuda",dmg:5},{name:"Twilight Eel",dmg:8},{name:"Abyss Angler",dmg:13}];
-const HATCH=[40,80,140,220,330,480]; // seconds
+const FISH=[{name:"Sandminnow",dmg:1},{name:"Reef Snapper",dmg:2},{name:"Kelp Pike",dmg:3},{name:"Blue Barracuda",dmg:5},{name:"Twilight Eel",dmg:8},{name:"Abyss Angler",dmg:13},{name:"Ember Goby",dmg:20},{name:"Frost Cod",dmg:30},{name:"Ruin Carp",dmg:45},{name:"Hadal Snailfish",dmg:70}];
+const HATCH=[40,80,140,220,330,480,600,780,960,1200]; // seconds
 const SPECIES=[
  {t:0,name:"Sandminnow",       r:0,col:"#f6e7c1",fin:"#d9b67a",shape:"basic"},
  {t:0,name:"Sunny Guppy",      r:1,col:"#ffd166",fin:"#ff9f68",shape:"sail"},
@@ -185,7 +194,19 @@ const SPECIES=[
  {t:4,name:"Lantern Lure",     r:2,col:"#4a3a6a",fin:"#6a5a9a",shape:"lure"},
  {t:5,name:"Abyss Angler",     r:0,col:"#ff3b5c",fin:"#a32a3e",shape:"lure"},
  {t:5,name:"Void Shark",       r:1,col:"#5a6075",fin:"#2a2f3f",shape:"shark"},
- {t:5,name:"Crystal Leviathan",r:2,col:"#bff6ff",fin:"#8ff0ff",shape:"crystal"}];
+ {t:5,name:"Crystal Leviathan",r:2,col:"#bff6ff",fin:"#8ff0ff",shape:"crystal"},
+ {t:6,name:"Ember Goby",       r:0,col:"#ff8a3a",fin:"#c4401a",shape:"basic"},
+ {t:6,name:"Magma Puffer",     r:1,col:"#3a1a10",fin:"#ff5a1a",shape:"puffer"},
+ {t:6,name:"Smoker Shark",     r:2,col:"#4a3a34",fin:"#ff7a3a",shape:"shark"},
+ {t:7,name:"Frost Cod",        r:0,col:"#d8f4ff",fin:"#8fc8e8",shape:"long"},
+ {t:7,name:"Icefin",           r:1,col:"#a8e4ff",fin:"#ffffff",shape:"sail"},
+ {t:7,name:"Glacier Ray",      r:2,col:"#e8fbff",fin:"#6ab8e8",shape:"ray"},
+ {t:8,name:"Ruin Carp",        r:0,col:"#a89a6a",fin:"#6a5a3a",shape:"chunky"},
+ {t:8,name:"Gilded Koi",       r:1,col:"#ffcf4a",fin:"#ff7a3a",shape:"tall"},
+ {t:8,name:"Statue Eel",       r:2,col:"#9aa0a8",fin:"#5a6068",shape:"eel",stripe:"#c9b46a"},
+ {t:9,name:"Hadal Snailfish",  r:0,col:"#ffc8e0",fin:"#e89ac0",shape:"basic"},
+ {t:9,name:"Void Lure",        r:1,col:"#1a0a2a",fin:"#8a4aff",shape:"lure"},
+ {t:9,name:"Star Leviathan",   r:2,col:"#c9a8ff",fin:"#ffffff",shape:"crystal"}];
 const RARITY=[{name:"Common",w:60,mult:1,col:"#9fc4d6"},{name:"Uncommon",w:30,mult:1.3,col:"#7fe0a8"},{name:"Rare",w:10,mult:1.8,col:"#ffd166"}];
 const spIdx=it=>it.sp!=null?it.sp:it.t*3,spOf=it=>SPECIES[spIdx(it)],spName=it=>spOf(it).name;
 const spMult=it=>it.fish?RARITY[spOf(it).r].mult:1;
@@ -520,6 +541,29 @@ const dAmb=new THREE.AmbientLight("#ffffff",.5),dSun=new THREE.DirectionalLight(
 dSun.position.set(.3,1,.6);dScene.add(dAmb,dSun,warnLight);
 let diverM,momM,nestSlot,carrySlotD,kelps=[],boatG,whirl,diveBuilt=false;
 function gradTex(a,b){const c=document.createElement("canvas");c.width=2;c.height=256;const x=c.getContext("2d");const g=x.createLinearGradient(0,0,0,256);g.addColorStop(0,a);g.addColorStop(1,b);x.fillStyle=g;x.fillRect(0,0,2,256);return new THREE.CanvasTexture(c)}
+function deepDecor(kind,floorY){const top=H/2-SURF;
+  if(kind==="vents"){const rock=mat("#2a1a14",{roughness:1}),glow=mat("#ff7a1a",{emissive:col("#ff5a00"),emissiveIntensity:1.6});
+    for(let i=0;i<9;i++){const h=rand(50,150),x=rand(-W*.7,W*.7),z=rand(-420,-60);const c=mesh(new THREE.CylinderGeometry(rand(6,10),rand(16,24),h,8),rock);c.position.set(x,floorY+h/2,z);dStatic.add(c);
+      const r=mesh(new THREE.TorusGeometry(7,2.5,6,12),glow);r.rotation.x=Math.PI/2;r.position.set(x,floorY+h,z);dStatic.add(r);
+      const plume=mesh(new THREE.ConeGeometry(14,70,8,1,true),new THREE.MeshBasicMaterial({color:"#2a1a14",transparent:true,opacity:.35,depthWrite:false}));plume.position.set(x,floorY+h+35,z);plume.rotation.x=Math.PI;dStatic.add(plume)}
+    [-.35,.35].forEach(k=>{const l=new THREE.PointLight("#ff6a1a",1.6,700,1.4);l.position.set(W*k,floorY+80,-120);dStatic.add(l)})}
+  if(kind==="ice"){const ice=mat("#cfeeff",{transparent:true,opacity:.85,roughness:.15,metalness:.2,emissive:col("#6ab8e8"),emissiveIntensity:.35});
+    for(let i=0;i<16;i++){const h=rand(40,170),c=mesh(new THREE.ConeGeometry(rand(8,22),h,6),ice);c.position.set(rand(-W*.75,W*.75),floorY+h/2,rand(-460,-50));c.rotation.z=rand(-.15,.15);dStatic.add(c)}
+    for(let i=0;i<12;i++){const h=rand(30,90),c=mesh(new THREE.ConeGeometry(rand(6,14),h,6),ice);c.position.set(rand(-W*.75,W*.75),top-h/2-4,rand(-460,-80));c.rotation.x=Math.PI;dStatic.add(c)}
+    for(let i=0;i<6;i++){const b=mesh(new THREE.BoxGeometry(rand(30,70),rand(20,40),rand(30,60)),ice);b.position.set(rand(-W*.7,W*.7),floorY+10,rand(-420,-60));b.rotation.y=rand(0,3);dStatic.add(b)}
+    const l=new THREE.PointLight("#9fe0ff",1.2,900,1.2);l.position.set(0,0,-100);dStatic.add(l)}
+  if(kind==="ruins"){const stone=mat("#6a6a5a",{roughness:.95}),gold=mat("#c9a84a",{metalness:.7,roughness:.3,emissive:col("#5a4010"),emissiveIntensity:.3});
+    for(let i=0;i<10;i++){const x=rand(-W*.7,W*.7),z=rand(-430,-70),h=rand(70,210),broken=Math.random()<.5;const c=mesh(new THREE.CylinderGeometry(9,10,broken?h*.6:h,10),stone);c.position.set(x,floorY+(broken?h*.3:h/2),z);c.rotation.z=broken?rand(-.25,.25):0;dStatic.add(c);
+      if(!broken){const cap=mesh(new THREE.BoxGeometry(30,8,30),stone);cap.position.set(x,floorY+h+4,z);dStatic.add(cap)}}
+    for(let i=0;i<3;i++){const a=mesh(new THREE.TorusGeometry(50,8,6,16,Math.PI),stone);a.position.set(rand(-W*.6,W*.6),floorY,rand(-460,-200));dStatic.add(a)}
+    for(let i=0;i<5;i++){const w=mesh(new THREE.BoxGeometry(rand(40,110),rand(20,60),10),stone);w.position.set(rand(-W*.7,W*.7),floorY+15,rand(-450,-80));w.rotation.y=rand(-.6,.6);dStatic.add(w)}
+    const st=mesh(new THREE.OctahedronGeometry(22),gold);st.scale.y=1.8;st.position.set(rand(-W*.4,W*.4),floorY+40,-260);dStatic.add(st);
+    const l=new THREE.PointLight("#ffd27a",1,600,1.4);l.position.set(st.position.x,floorY+90,-200);dStatic.add(l)}
+  if(kind==="crystals"){const cm=c=>mat(c,{emissive:col(c),emissiveIntensity:1.1,metalness:.6,roughness:.2,transparent:true,opacity:.9});const cols=["#8a4aff","#ff4af0","#4ad8ff"];
+    for(let i=0;i<14;i++){const g=new THREE.Group(),c=cm(cols[i%3]);for(let j=0;j<4;j++){const k=mesh(new THREE.OctahedronGeometry(rand(8,18)),c);k.scale.y=rand(2,3.5);k.position.set(rand(-14,14),rand(10,30),rand(-10,10));k.rotation.set(rand(-.4,.4),rand(0,3),rand(-.4,.4));g.add(k)}
+      g.position.set(rand(-W*.75,W*.75),floorY,rand(-460,-60));dStatic.add(g)}
+    for(let i=0;i<10;i++){const o=mesh(SPH,bas(cols[i%3],{transparent:true,opacity:.7}));o.scale.setScalar(rand(3,6));o.position.set(rand(-W*.7,W*.7),rand(floorY+60,top-40),rand(-400,-80));dStatic.add(o)}
+    [-.3,.3].forEach(k=>{const l=new THREE.PointLight("#b07aff",1.4,700,1.3);l.position.set(W*k,floorY+120,-150);dStatic.add(l)})}}
 function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dark;kelps=[];
   dCam.aspect=cw/ch;dCam.fov=45;dDist=(H/2)/Math.tan(THREE.MathUtils.degToRad(22.5))*1.05;dCam.position.set(0,0,dDist);dCam.lookAt(0,0,0);dCam.updateProjectionMatrix();
   dScene.background=col(s.bot).multiplyScalar(.6);dScene.fog=new THREE.Fog(col(s.bot),dDist+60,dDist+260+500*dk);
@@ -531,7 +575,7 @@ function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dar
   const floorY=H/2-(H-14);const fl=mesh(new THREE.BoxGeometry(W*3,60,900),mat(s.sand,{roughness:1}));fl.position.set(0,floorY-30,-300);dStatic.add(fl);
   for(let i=0;i<26;i++){const r=mesh(SPH,mat(G.stage>=4?"#1d2530":"#8f8270",{roughness:1}));r.scale.set(rand(10,40),rand(6,22),rand(10,30));r.position.set(rand(-W*.8,W*.8),floorY,rand(-500,-60));dStatic.add(r)}
   const n=Math.ceil(W/38);
-  for(let i=0;i<n;i++){const x=i*38+rand(-10,10)-W/2,z=rand(-420,-40),kelp=G.stage===2?Math.random()<.85:Math.random()<.35;
+  for(let i=0;i<n;i++){const x=i*38+rand(-10,10)-W/2,z=rand(-420,-40),kelp=G.stage>=6?(G.stage===8&&Math.random()<.15):G.stage===2?Math.random()<.85:Math.random()<.35;
     if(kelp){const root=new THREE.Group();root.position.set(x,floorY,z);dStatic.add(root);const segs=[];let par=root;const h=(H-SURF)*rand(.25,.7)*(G.stage===2?1.25:.75);const nS=Math.max(4,Math.round(h/34));
       const km=mat(G.stage>=4?"#123a2c":"#2e8a55",{emissive:col(G.stage>=4?"#1a5a40":"#000000"),emissiveIntensity:.2});
       for(let j=0;j<nS;j++){const g=new THREE.Group();g.position.y=j?h/nS:0;par.add(g);const c=mesh(new THREE.CylinderGeometry(2.5,3.5,h/nS,6),km);c.position.y=h/nS/2;g.add(c);
@@ -540,6 +584,7 @@ function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dar
     else if(G.stage<=1){const c=["#ff9f68","#ffd166","#7fe0a8","#ff7aa2","#8fd3ff","#c59bff"][i%6];const m=mat(c,{roughness:.8});
       if(Math.random()<.5){const b=mesh(SPH,m);b.scale.set(rand(14,26),rand(10,20),rand(12,22));b.position.set(x,floorY,z);dStatic.add(b)}
       else for(let j=0;j<4;j++){const br=mesh(new THREE.CylinderGeometry(2,3,rand(20,40),6),m);br.position.set(x+rand(-8,8),floorY+15,z+rand(-8,8));br.rotation.set(rand(-.4,.4),0,rand(-.4,.4));dStatic.add(br)}}}
+  if(s.deco)deepDecor(s.deco,floorY);
   boatG=new THREE.Group();const hull=mesh(new THREE.BoxGeometry(140,22,60),mat("#7a3b26"));boatG.add(hull);
   const keel=mesh(new THREE.BoxGeometry(110,14,44),mat("#6a3020"));keel.position.y=-16;boatG.add(keel);
   const cab=mesh(new THREE.BoxGeometry(34,24,40),mat("#e8fbff"));cab.position.set(-8,23,0);boatG.add(cab);
@@ -567,7 +612,7 @@ function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dar
 /* ================= helpers ================= */
 const inRect=(p,r)=>p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h;
 const near=(p,c,r)=>Math.hypot(p.x-c.x,p.y-c.y)<r;
-function rivalTier(){const u=SV.unlocked;let t=Math.max(0,u-1+(Math.random()<.55?1:0));if(Math.random()<.1)t++;return Math.min(5,t)}
+function rivalTier(){const u=SV.unlocked;let t=Math.max(0,u-1+(Math.random()<.55?1:0));if(Math.random()<.1)t++;return Math.min(EGGS.length-1,t)}
 function restockRival(){const now=Date.now();for(let i=0;i<3;i++){if(SV.rival[i]==null&&now>=SV.restock[i])SV.rival[i]=rivalTier()}}
 function addEgg(t,quiet,w,fm,fsp){const it={id:uid(),t,at:Date.now()+HATCH[t]*1000*(w==="rain"?.5:1),fish:null};if(w)it.w=w;if(fm)it.fm=fm;if(fsp!=null)it.fsp=fsp;let msg;
   if(SV.base.length<cap()){SV.base.push(it);msg=`${EGGS[t].name} added to your base. Hatches in ${mmss(HATCH[t])}`}
@@ -689,7 +734,7 @@ function adminMenu(){G.mode="menu";
     fish:()=>{SV.base.push({id:uid(),t:5,at:0,fish:"fight",lvl:MAXLV});if(SV.base.length>cap())SV.base.sort((a,b)=>itemScore(b)-itemScore(a)).length=cap()},
     hatch:()=>{SV.base.forEach(it=>{if(!it.fish)it.at=0});hatchCheck()},
     max:()=>{for(const k in UPS)SV.up[k]=UPS[k].max;for(const k in TOOLS)SV.tools[k]=TOOLS[k].tiers.length;SV.base.forEach(it=>it.lvl=MAXLV)},
-    stages:()=>{SV.best=5;SV.unlocked=5},
+    stages:()=>{SV.best=LAST;SV.unlocked=LAST},
     restock:()=>{SV.restock=[0,0,0];SV.rival=[null,null,null];restockRival()},
     god:()=>{G.god=!G.god},lab:()=>{}};
   $("card").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="lab")return eggLab();
@@ -731,7 +776,7 @@ const QDEF={
  steal:  {txt:n=>`Steal ${n} egg${n>1?"s":""} from Snapjaw`,goal:()=>[1,2,3][Math.random()*3|0]},
  hatch:  {txt:n=>`Hatch ${n} fish`,goal:()=>[1,2,3][Math.random()*3|0]},
  collect:{txt:n=>`Collect ${fmt(n)} coins from your vault`,goal:()=>Math.max(200,Math.round(rate()*150/50)*50)},
- stage:  {txt:n=>`Reach stage ${n} in a run`,goal:()=>Math.min(6,SV.best+1+(Math.random()<.5?1:0))},
+ stage:  {txt:n=>`Reach stage ${n} in a run`,goal:()=>Math.min(STAGES.length,SV.best+1+(Math.random()<.5?1:0))},
  drive:  {txt:n=>`Drive off ${n} Mother${n>1?"s":""}`,goal:()=>[1,2][Math.random()*2|0],ok:()=>squad().length||SV.tools.spear},
  eggs:   {txt:n=>`Grab ${n} eggs while diving`,goal:()=>[10,20,30][Math.random()*3|0]},
  upgrade:{txt:n=>`Level up fish ${n} time${n>1?"s":""}`,goal:()=>[1,2,3][Math.random()*3|0],ok:()=>SV.base.some(f=>f.fish)},
@@ -815,7 +860,7 @@ function eggLab(){G.mode="menu";const e=EGGS[LAB.t],W=WEATHER[LAB.w],od=mutOdds(
    <svg class="big-fish" viewBox="0 0 60 60" style="width:96px;filter:drop-shadow(0 0 10px ${W.col})"><ellipse cx="30" cy="31" rx="17" ry="22" fill="${e.col}"/><circle cx="23" cy="24" r="3.4" fill="${e.spot}"/><circle cx="36" cy="35" r="2.8" fill="${e.spot}"/><circle cx="27" cy="42" r="2.2" fill="${e.spot}"/><ellipse cx="30" cy="31" rx="27" ry="7" fill="none" stroke="${W.col}" stroke-width="2.4"/></svg>
    <h2>${LAB.m!=="random"?MUT[LAB.m].name+" ":""}${W.name} ${e.name}</h2>
    <p>Fighters: <b style="color:${MUT.electric.col}">${od.f}</b><br>Earners: <b style="color:${MUT.golden.col}">${od.e}</b>${LAB.w==="rain"?"<br>Rain-charged eggs also hatch twice as fast.":""}</p>
-   <h3>Egg</h3><div class="stats" style="grid-template-columns:repeat(6,1fr)">${EGGS.map((x,i)=>pick("lt",i,LAB.t===i,i+1,x.col)).join("")}</div>
+   <h3>Egg</h3><div class="stats" style="grid-template-columns:repeat(5,1fr)">${EGGS.map((x,i)=>pick("lt",i,LAB.t===i,i+1,x.col)).join("")}</div>
    <h3>Species</h3><div class="stats" style="grid-template-columns:repeat(4,1fr)">${pick("ls","random",LAB.sp==="random","Random")}${[0,1,2].map(k=>{const i=LAB.t*3+k,S=SPECIES[i];return pick("ls",i,LAB.sp===i,`${S.name}<br><span style="font-size:10px;opacity:.8">${RARITY[S.r].name}</span>`,S.col)}).join("")}</div>
    <h3>Weather charge</h3><div class="stats" style="grid-template-columns:repeat(4,1fr)">${Object.entries(WEATHER).map(([k,x])=>pick("lw",k,LAB.w===k,x.name==="Thunderstorm"?"Storm":x.name,x.col)).join("")}</div>
    <h3>Mutation</h3><div class="stats" style="grid-template-columns:repeat(5,1fr)">${pick("lm","random",LAB.m==="random","Weather odds")}${Object.entries(MUT).map(([k,x])=>pick("lm",k,LAB.m===k,x.name,x.col)).join("")}</div>
@@ -854,7 +899,7 @@ function startStage(){const s=S();
   Object.assign(P,{x:W/2,y:SURF+90,vx:0,vy:0,a:Math.PI/2,dash:0,cd:0,inv:1.5,carry:null});
   clearGroup(babyG);babies=[];for(let i=0;i<s.babies;i++)babies.push(spawnBaby(false));
   const boss=!!s.boss;
-  mom={state:"away",t:rand(...s.calm)*(boss?.7:1),x:-300,y:H/2,vx:0,vy:0,a:0,edge:0,r:(58+G.stage*7)*(boss?1.3:1),ph:0,mouth:0,ex:0,ey:0,enraged:false,
+  mom={state:"away",t:rand(...s.calm)*(boss?.7:1),x:-300,y:H/2,vx:0,vy:0,a:0,edge:0,r:(58+Math.min(G.stage,7)*7)*(boss?1.3:1),ph:0,mouth:0,ex:0,ey:0,enraged:false,
     hp:0,max:Math.round((14+G.stage*14)*(boss?3:1)),stun:0,gone:false,boss,met:false};mom.hp=mom.max;
   nest={x:rand(W*.2,W*.8),y:H-30};if(Math.abs(nest.x-W/2)<60)nest.x+=120;placePortal();
   comp.forEach(c=>{c.x=P.x-30;c.y=P.y-20});
@@ -898,7 +943,7 @@ function updateDive(dt){const s=S();G.t+=dt;
     b.vx+=(tx-b.vx)*Math.min(1,3*dt);b.vy+=(ty-b.vy)*Math.min(1,3*dt);b.x+=b.vx*dt;b.y+=b.vy*dt;
     if(d<b.r+18+netReach()){b.dead=1;G.count++;quest("eggs");if(b.gold){G.gold++;RUN.haul+=s.value*3;sfx.gold();spark(b.x,b.y,"#ffd166")}else{RUN.haul+=s.value;sfx.grab();spark(b.x,b.y,EGGS[G.stage].col)}
       if(mom.state==="away"&&!mom.gone)mom.t=Math.max(.3,mom.t-1);
-      if(G.count===s.quota)toast(G.stage<5?"Quota met! Boat = keep loot · Whirlpool = go deeper":"Quota met! Swim up to the boat","#7fe0a8");updHud()}}
+      if(G.count===s.quota)toast(G.stage<LAST?"Quota met! Boat = keep loot · Whirlpool = go deeper":"Quota met! Swim up to the boat","#7fe0a8");updHud()}}
   babies=babies.filter(b=>{if(b.dead)babyG.remove(b.f.g);return !b.dead});while(babies.length<s.babies)babies.push(spawnBaby(true));
   if(G.egg==="nest"&&Math.hypot(P.x-nest.x,P.y-(nest.y-12))<32+netReach()){G.egg="carried";sfx.egg();spark(nest.x,nest.y-12,EGGS[G.stage].col);
     if(!mom.gone){toast("You took her egg! RUN","#ff3b5c");mom.enraged=true;if(mom.state==="away"){mom.t=0}else if(mom.state==="leave"){mom.state="hunt";mom.t=s.hunt}else if(mom.state==="hunt")mom.t+=3}
@@ -907,7 +952,7 @@ function updateDive(dt){const s=S();G.t+=dt;
   updateComp(dt);
   const done=G.count>=s.quota;
   if(done&&P.y<SURF+22&&Math.abs(P.x-W/2)<90){surfaceRun();return}
-  if(done&&G.stage<5&&Math.hypot(P.x-portal.x,P.y-portal.y)<46){goDeeper();return}
+  if(done&&G.stage<LAST&&Math.hypot(P.x-portal.x,P.y-portal.y)<46){goDeeper();return}
   stepParts(dt);updMom()}
 function updateMom(dt,s){mom.ph+=dt*(mom.state==="hunt"?7:4);mom.t-=dt;mom.stun=Math.max(0,mom.stun-dt);
   if(mom.gone&&mom.state==="away")return;
@@ -944,8 +989,8 @@ function leaveStage(){const s=S();RUN.haul+=Math.max(0,Math.round((60-G.t)*s.val
 function goDeeper(){leaveStage();sfx.whoosh();G.stage++;flash=0;startStage()}
 function surfaceRun(){leaveStage();G.mode="menu";sfx.clear();const r=RUN;SV.coins+=r.haul;persist();
   const eggTxt=r.eggs.length?r.eggs.map(t=>`<span style="color:${EGGS[t].col}">${EGGS[t].name}</span>`).join(", "):"none";
-  show(`<div class="eyebrow good">Surfaced from ${S().depth}</div><h2>${G.stage===5?"You robbed the Abyss":"Run banked"}</h2>
-  <div class="stats"><div class="stat"><span class="lbl">Deepest</span><b>${G.stage+1}/6</b></div><div class="stat"><span class="lbl">Coins</span><b class="goldt">+${fmt(r.haul)}</b></div><div class="stat"><span class="lbl">Mothers beaten</span><b>${r.drove}</b></div></div>
+  show(`<div class="eyebrow good">Surfaced from ${S().depth}</div><h2>${G.stage===LAST?"You reached the bottom of the ocean":"Run banked"}</h2>
+  <div class="stats"><div class="stat"><span class="lbl">Deepest</span><b>${G.stage+1}/${STAGES.length}</b></div><div class="stat"><span class="lbl">Coins</span><b class="goldt">+${fmt(r.haul)}</b></div><div class="stat"><span class="lbl">Mothers beaten</span><b>${r.drove}</b></div></div>
   <p>Eggs brought home: ${eggTxt}.</p>${r.bosses?`<p class="goldt">Bosses defeated: ${r.bosses}</p>`:""}`,
   [{label:"Back to the island",fn:()=>{enterLobby();r.eggs.forEach((t,i)=>addEgg(t,i<r.eggs.length-1))}}])}
 
@@ -1077,7 +1122,7 @@ function renderDive(now){const s=S();
   const done=G.count>=s.quota;
   boatG.userData.ring.visible=done;boatG.userData.ring.rotation.z=now;boatG.position.y=H/2-(SURF-6)+Math.sin(now*1.5)*2;boatG.rotation.z=Math.sin(now*1.1)*.03;
   if(done)lab("surf","SURFACE",D(W/2,SURF+44,0),dCam,"","#7fe0a8");
-  whirl.visible=done&&G.stage<5;if(whirl.visible){whirl.children.forEach((t,i)=>{t.rotation.z=now*(1.5+i*.8)*(i%2?-1:1);t.rotation.x=Math.sin(now+i)*.3});lab("deep","DEEPER",D(portal.x,portal.y-62,0),dCam,"","#c59bff")}
+  whirl.visible=done&&G.stage<LAST;if(whirl.visible){whirl.children.forEach((t,i)=>{t.rotation.z=now*(1.5+i*.8)*(i%2?-1:1);t.rotation.x=Math.sin(now+i)*.3});lab("deep","DEEPER",D(portal.x,portal.y-62,0),dCam,"","#c59bff")}
   kelps.forEach(k=>k.segs.forEach((g,i)=>g.rotation.z=Math.sin(now*1.2+k.c+i*.5)*.07));
   if(mom.state==="warn"){const gx=mom.edge===0?0:mom.edge===1?W:mom.ex,gy=mom.edge===2?H:mom.ey;warnLight.position.copy(D(gx,gy,120));warnLight.intensity=2.5+2*Math.sin(now*14);
     lab("warn","!",D(Math.max(30,Math.min(W-30,gx)),Math.max(SURF+40,Math.min(H-40,gy)),0),dCam,"huge","#ffffff")}else warnLight.intensity=0;
