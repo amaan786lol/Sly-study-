@@ -167,6 +167,29 @@ const EGGS=[
 ];
 const FISH=[{name:"Sandminnow",dmg:1},{name:"Reef Snapper",dmg:2},{name:"Kelp Pike",dmg:3},{name:"Blue Barracuda",dmg:5},{name:"Twilight Eel",dmg:8},{name:"Abyss Angler",dmg:13}];
 const HATCH=[40,80,140,220,330,480]; // seconds
+const SPECIES=[
+ {t:0,name:"Sandminnow",       r:0,col:"#f6e7c1",fin:"#d9b67a",shape:"basic"},
+ {t:0,name:"Sunny Guppy",      r:1,col:"#ffd166",fin:"#ff9f68",shape:"sail"},
+ {t:0,name:"Pebble Puffer",    r:2,col:"#e8d6a8",fin:"#b8945a",shape:"puffer"},
+ {t:1,name:"Reef Snapper",     r:0,col:"#ff9f68",fin:"#ff7a59",shape:"basic"},
+ {t:1,name:"Clownfin",         r:1,col:"#ff7a1a",fin:"#1b2a3a",shape:"striped",stripe:"#ffffff"},
+ {t:1,name:"Coral Tang",       r:2,col:"#3d7cff",fin:"#ffd166",shape:"tall"},
+ {t:2,name:"Kelp Pike",        r:0,col:"#7fe0a8",fin:"#3aa36a",shape:"long"},
+ {t:2,name:"Kelp Grouper",     r:1,col:"#6d9a52",fin:"#3a5a2a",shape:"chunky"},
+ {t:2,name:"Leafy Dragonet",   r:2,col:"#b5e86b",fin:"#5fc48a",shape:"leafy"},
+ {t:3,name:"Blue Barracuda",   r:0,col:"#5fb8ff",fin:"#2f7fd0",shape:"long"},
+ {t:3,name:"Sailfin",          r:1,col:"#3a6fd8",fin:"#8fd3ff",shape:"sail"},
+ {t:3,name:"Spotted Ray",      r:2,col:"#4a6fa8",fin:"#2a4f88",shape:"ray"},
+ {t:4,name:"Twilight Eel",     r:0,col:"#c59bff",fin:"#8a5ad8",shape:"eel"},
+ {t:4,name:"Moon Moray",       r:1,col:"#d8d0ff",fin:"#9b8ad8",shape:"eel",stripe:"#7a6ac0"},
+ {t:4,name:"Lantern Lure",     r:2,col:"#4a3a6a",fin:"#6a5a9a",shape:"lure"},
+ {t:5,name:"Abyss Angler",     r:0,col:"#ff3b5c",fin:"#a32a3e",shape:"lure"},
+ {t:5,name:"Void Shark",       r:1,col:"#5a6075",fin:"#2a2f3f",shape:"shark"},
+ {t:5,name:"Crystal Leviathan",r:2,col:"#bff6ff",fin:"#8ff0ff",shape:"crystal"}];
+const RARITY=[{name:"Common",w:60,mult:1,col:"#9fc4d6"},{name:"Uncommon",w:30,mult:1.3,col:"#7fe0a8"},{name:"Rare",w:10,mult:1.8,col:"#ffd166"}];
+const spIdx=it=>it.sp!=null?it.sp:it.t*3,spOf=it=>SPECIES[spIdx(it)],spName=it=>spOf(it).name;
+const spMult=it=>it.fish?RARITY[spOf(it).r].mult:1;
+function rollSpecies(t){let r=Math.random()*100;for(let k=0;k<3;k++){r-=RARITY[SPECIES[t*3+k].r].w;if(r<0)return t*3+k}return t*3}
 const UPS={
  speed:{name:"Flippers",      desc:"Swim and run faster",                max:5,cost:l=>100*3**l},
  dash: {name:"Jet Tank",      desc:"Dash recharges faster",              max:5,cost:l=>150*3**l},
@@ -204,7 +227,7 @@ function rollMut(fish,w){const r=Math.random();
 const mutName=it=>it.mut?MUT[it.mut].name+" ":"";
 const lv=it=>it.lvl||1;
 const gearCost=it=>Math.round(EGGS[it.t].rate*40*1.8**(lv(it)-1));
-const fishDmg=it=>Math.round(FISH[it.t].dmg*(1+.35*(lv(it)-1))*(it.mut?MUT[it.mut].power:1)*10)/10;
+const fishDmg=it=>Math.round(FISH[it.t].dmg*spMult(it)*(1+.35*(lv(it)-1))*(it.mut?MUT[it.mut].power:1)*10)/10;
 const spearT=()=>SV.tools.spear?TOOLS.spear.tiers[SV.tools.spear-1]:null;
 const netReach=()=>SV.tools.net?TOOLS.net.tiers[SV.tools.net-1].reach:0;
 const RESTOCK=45000;
@@ -218,14 +241,15 @@ try{let r=JSON.parse(localStorage.getItem(KEY)||"null");
   if(r)SV=Object.assign(fresh(),r,{up:Object.assign(fresh().up,r.up||{}),tools:Object.assign(fresh().tools,r.tools||{})})}catch(e){}
 function persist(){SV.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(SV))}catch(e){}}
 const uid=()=>Math.random().toString(36).slice(2,9);
-SV.dex=SV.dex||{};SV.quests=SV.quests||[];SV.pets=SV.pets||[];SV.base.forEach(it=>{if(!it.id)it.id=uid();if(it.fish)SV.dex[`${it.t}:${it.mut||"none"}`]=1});
+SV.dex=SV.dex||{};SV.quests=SV.quests||[];SV.pets=SV.pets||[];SV.base.forEach(it=>{if(!it.id)it.id=uid();if(it.fish)SV.dex[`s${spIdx(it)}:${it.mut||"none"}`]=1});
+for(const k of Object.keys(SV.dex))if(/^\d:/.test(k)){const[t,m]=k.split(":");SV.dex[`s${t*3}:${m}`]=1;delete SV.dex[k]}
 SV.adm=SV.adm||{};
 const slots=()=>SV.adm.slots||4+SV.up.slots;
 const FH=80;const floors=()=>SV.adm.floors||1+(SV.up.floors||0);const cap=()=>slots()*floors();
 const squadMax=()=>SV.adm.squad||1+SV.up.squad;
 const petMax=()=>SV.adm.pets||3;
-const itemRate=it=>EGGS[it.t].rate*(it.fish==="earn"?3:it.fish==="fight"?1.5:1)*(1+.3*(lv(it)-1))*(it.mut?MUT[it.mut].money:1);
-const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0)+(lv(it)-1)*.2+(it.mut?(MUT[it.mut].money+MUT[it.mut].power-2)*1.2:0);
+const itemRate=it=>EGGS[it.t].rate*spMult(it)*(it.fish==="earn"?3:it.fish==="fight"?1.5:1)*(1+.3*(lv(it)-1))*(it.mut?MUT[it.mut].money:1);
+const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0)+(lv(it)-1)*.2+(it.fish?spOf(it).r*.6:0)+(it.mut?(MUT[it.mut].money+MUT[it.mut].power-2)*1.2:0);
 const rate=()=>SV.base.reduce((a,it)=>a+itemRate(it),0);
 const squad=()=>SV.base.filter(f=>f.fish==="fight").sort((a,b)=>fishDmg(b)-fishDmg(a)).slice(0,squadMax());
 let offline=0;{const el=Math.min(7200,Math.max(0,(Date.now()-SV.last)/1000));offline=Math.floor(rate()*el);SV.vault+=offline}
@@ -278,8 +302,9 @@ const pSpeed=()=>205*(1+.09*SV.up.speed);
 const dashCd=()=>1.5*(1-.12*SV.up.dash);
 
 /* ================= 3D models ================= */
-function makeFish(len,c,o={}){const g=new THREE.Group(),inner=new THREE.Group();g.add(inner);
-  const h=o.h||.42,m=mat(c,{emissive:col(c),emissiveIntensity:o.glow||0}),fm=mat(o.fin||c);
+const SHAPE_H={basic:.42,sail:.42,puffer:.8,striped:.46,tall:.72,long:.26,chunky:.6,leafy:.4,ray:.16,eel:.18,lure:.5,shark:.34,crystal:.42};
+function makeFish(len,c,o={}){const g=new THREE.Group(),inner=new THREE.Group();g.add(inner);const sh=o.shape||"basic";if(sh==="eel")len*=1.25;
+  const h=o.h||SHAPE_H[sh]||.42,m=mat(c,{emissive:col(c),emissiveIntensity:o.glow||0}),fm=mat(o.fin||c);
   const body=mesh(SPH,m,o.shadow);body.scale.set(len*.5,len*h*.5,len*h*.36);inner.add(body);
   if(o.belly){const b=mesh(SPH,mat(o.belly));b.scale.set(len*.4,len*h*.3,len*h*.3);b.position.set(len*.04,-len*h*.2,0);inner.add(b)}
   const tp=new THREE.Group();tp.position.x=-len*.42;inner.add(tp);
@@ -289,10 +314,26 @@ function makeFish(len,c,o={}){const g=new THREE.Group(),inner=new THREE.Group();
     const pu=mesh(SPH,o.eyeMat||bas("#04121f"));pu.scale.setScalar(len*.038);pu.position.set(len*.34,len*h*.08,s*len*h*.34);inner.add(pu);
     if(o.brow){const b=mesh(new THREE.BoxGeometry(len*.14,len*.025,len*.02),bas("#04121f"));b.position.set(len*.3,len*h*.22,s*len*h*.33);b.rotation.z=-.4;inner.add(b)}});
   if(o.band){const b=mesh(new THREE.TorusGeometry(len*h*.42,len*.03,6,16),mat("#ff3b5c"));b.rotation.y=Math.PI/2;b.position.x=len*.12;inner.add(b)}
+  const fm2=mat(o.fin||c);
+  if(sh==="puffer"){body.scale.set(len*.36,len*.34,len*.32);const sp=mat(o.fin||c);for(let i=0;i<16;i++){const v=V(Math.random()-.5,Math.random()-.3,Math.random()-.5).normalize();const k=mesh(new THREE.ConeGeometry(len*.03,len*.12,4),sp);k.position.set(v.x*len*.36,v.y*len*.34,v.z*len*.32);k.quaternion.setFromUnitVectors(V(0,1,0),v);inner.add(k)}}
+  if(sh==="sail"){dor.scale.set(2.4,2.2,.2);dor.position.y=len*h*.9}
+  if(sh==="tall"){dor.scale.set(1.6,1.4,.2)}
+  if(sh==="striped")[-.12,.14].forEach(x=>{const r=mesh(new THREE.TorusGeometry(len*h*.36,len*.045,6,18),mat(o.stripe||"#fff"));r.rotation.y=Math.PI/2;r.scale.set(1,1.15,.78);r.position.x=len*x;inner.add(r)});
+  if(sh==="eel"){body.scale.x=len*.58;tp.scale.setScalar(.6);dor.scale.set(4,.5,.2);dor.position.y=len*h*.5;if(o.stripe)for(let i=-2;i<=2;i++){const r=mesh(new THREE.TorusGeometry(len*h*.37,len*.02,5,14),mat(o.stripe));r.rotation.y=Math.PI/2;r.scale.set(1,1.1,.78);r.position.x=len*i*.1;inner.add(r)}}
+  if(sh==="long"){body.scale.x=len*.56}
+  if(sh==="chunky"){const lip=mesh(SPH,fm2);lip.scale.set(len*.08,len*.1,len*.12);lip.position.set(len*.46,-len*.04,0);inner.add(lip)}
+  if(sh==="leafy")for(let i=0;i<7;i++){const l=mesh(SPH,fm2);l.scale.set(len*.1,len*.035,len*.07);const a=i/7*Math.PI*2;l.position.set(Math.cos(a)*len*.3,Math.sin(a)*len*h*.55,Math.sin(a*2)*len*.08);l.rotation.z=a;inner.add(l)}
+  if(sh==="ray"){[-1,1].forEach(s=>{const w=mesh(SPH,fm2);w.scale.set(len*.32,len*.03,len*.36);w.position.set(0,0,s*len*.22);inner.add(w)});tp.scale.set(.8,.4,.4)}
+  if(sh==="shark"){dor.scale.set(2,2.2,.25);dor.position.set(0,len*h*.75,0);dor.rotation.z=-.25;tail.scale.set(1.5,1,.25);const sn=mesh(new THREE.ConeGeometry(len*h*.3,len*.25,6),m);sn.rotation.z=-Math.PI/2;sn.position.x=len*.52;inner.add(sn)}
+  if(sh==="lure"){const st=mesh(new THREE.CylinderGeometry(len*.012,len*.012,len*.36,5),fm2);st.position.set(len*.3,len*h*.6,0);st.rotation.z=-.7;inner.add(st);
+    const bulb=mesh(SPH,new THREE.MeshStandardMaterial({color:"#fff6a8",emissive:col("#ffe066"),emissiveIntensity:1.5}));bulb.scale.setScalar(len*.06);bulb.position.set(len*.46,len*h*.78,0);inner.add(bulb);
+    const jaw=mesh(SPH,mat("#2a0a14"));jaw.scale.set(len*.12,len*.08,len*.14);jaw.position.set(len*.4,-len*h*.12,0);inner.add(jaw)}
+  if(sh==="crystal"){m.metalness=.9;m.roughness=.08;m.emissiveIntensity=Math.max(m.emissiveIntensity,.35);const cm=mat("#e8fdff",{metalness:.9,roughness:.05,emissive:col("#9ff6ff"),emissiveIntensity:.6});
+    for(let i=0;i<5;i++){const cr=mesh(new THREE.OctahedronGeometry(len*.07),cm);cr.scale.y=2;cr.position.set(-len*.22+i*len*.11,len*h*.55+Math.sin(i)*len*.02,0);inner.add(cr)}}
   return{g,inner,tp,body,len}}
 function applyMut(f,m){if(!m)return f;const M=MUT[m],b=f.body.material;if(M.body)b.color.set(M.body);b.emissive.set(M.em);b.emissiveIntensity=M.ei;b.metalness=M.metal;b.roughness=.25;
   const aura=mesh(SPH,new THREE.MeshBasicMaterial({color:M.col,transparent:true,opacity:.16,depthWrite:false}));aura.scale.set(f.len*.62,f.len*.34,f.len*.3);f.inner.add(aura);f.aura=aura;f.mut=m;return f}
-function fishFor(it,len,o={}){return applyMut(makeFish(len,EGGS[it.t].col,Object.assign({brow:it.fish==="fight",band:it.fish==="fight"},o)),it.mut)}
+function fishFor(it,len,o={}){const S=spOf(it);return applyMut(makeFish(len,S.col,Object.assign({brow:it.fish==="fight",band:it.fish==="fight",fin:S.fin,shape:S.shape,stripe:S.stripe},o)),it.mut)}
 function flickerMut(f,now,k=0){if(!f||!f.mut)return;const M=MUT[f.mut];const fl=f.mut==="electric"?(Math.random()<.15?1.6:.5):f.mut==="inferno"?.7+.3*Math.sin(now*9+k):M.ei+.15*Math.sin(now*3+k);
   f.body.material.emissiveIntensity=fl;f.aura.material.opacity=.12+.08*Math.sin(now*4+k)+(f.mut==="electric"&&fl>1?.2:0)}
 function poseFish(f,x,y,a,ph,z=0){f.g.position.copy(D(x,y,z));f.g.rotation.z=-a;f.inner.rotation.x=Math.cos(a)<0?Math.PI:0;f.tp.rotation.y=Math.sin(ph)*.45}
@@ -517,7 +558,7 @@ function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dar
   momM=makeMother(!!s.boss);momM.g.scale.setScalar(mom.r*2.4/100);momM.g.visible=false;dDyn.add(momM.g);
   if(G.stage>=4&&!s.boss)momM.body.material.color.set("#2b3a4f");
   const cg=new THREE.Group();dDyn.add(cg);carrySlotD=new Slot(cg);
-  comp.forEach(c=>{c.f=applyMut(makeFish(30+c.t*3+c.lvl,EGGS[c.t].col,{brow:true,band:true,glow:.1+s.dark*.4}),c.mut);dDyn.add(c.f.g)});
+  comp.forEach(c=>{c.f=fishFor(c.src,30+c.t*3+c.lvl,{glow:.1+s.dark*.4});dDyn.add(c.f.g)});
   dAmb.intensity=.25+.5*dk;dSun.intensity=.15+.85*dk;dAmb.color.set(s.top);
   diverM.lamp.intensity=s.dark*(2.2+SV.tools.lantern*.9);diverM.lamp.distance=420+SV.tools.lantern*170;
   if(SV.tools.spear){const sp=makeSpear(SV.tools.spear,40);sp.position.set(4,-8,6);diverM.inner.add(sp)}
@@ -528,15 +569,16 @@ const inRect=(p,r)=>p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h;
 const near=(p,c,r)=>Math.hypot(p.x-c.x,p.y-c.y)<r;
 function rivalTier(){const u=SV.unlocked;let t=Math.max(0,u-1+(Math.random()<.55?1:0));if(Math.random()<.1)t++;return Math.min(5,t)}
 function restockRival(){const now=Date.now();for(let i=0;i<3;i++){if(SV.rival[i]==null&&now>=SV.restock[i])SV.rival[i]=rivalTier()}}
-function addEgg(t,quiet,w,fm){const it={id:uid(),t,at:Date.now()+HATCH[t]*1000*(w==="rain"?.5:1),fish:null};if(w)it.w=w;if(fm)it.fm=fm;let msg;
+function addEgg(t,quiet,w,fm,fsp){const it={id:uid(),t,at:Date.now()+HATCH[t]*1000*(w==="rain"?.5:1),fish:null};if(w)it.w=w;if(fm)it.fm=fm;if(fsp!=null)it.fsp=fsp;let msg;
   if(SV.base.length<cap()){SV.base.push(it);msg=`${EGGS[t].name} added to your base. Hatches in ${mmss(HATCH[t])}`}
   else{let lo=0;SV.base.forEach((x,i)=>{if(itemScore(x)<itemScore(SV.base[lo]))lo=i});
     if(itemScore(it)>itemScore(SV.base[lo])){SV.base[lo]=it;msg=`${EGGS[t].name} took the spot of your weakest pedestal`}
     else{const v=EGGS[t].rate*60;SV.coins+=v;msg=`Base full. Sold ${EGGS[t].name} for ${fmt(v)}`}}
   SV.base.sort((a,b)=>itemScore(b)-itemScore(a));if(!quiet){toast(msg,EGGS[t].col);sfx.egg()}persist();updLobbyHud()}
-function hatchCheck(){const now=Date.now();let any=false;const w=weatherNow().type;for(const it of SV.base)if(!it.fish&&now>=it.at){if(it.fm){it.fish=MUT[it.fm].kind==="money"?"earn":"fight";it.mut=it.fm;delete it.fm}else{it.fish=Math.random()<.5?"fight":"earn";it.mut=rollMut(it.fish,it.w||w)}any=true;quest("hatch");
+function hatchCheck(){const now=Date.now();let any=false;const w=weatherNow().type;for(const it of SV.base)if(!it.fish&&now>=it.at){it.sp=it.fsp!=null?it.fsp:rollSpecies(it.t);delete it.fsp;if(it.fm){it.fish=MUT[it.fm].kind==="money"?"earn":"fight";it.mut=it.fm;delete it.fm}else{it.fish=Math.random()<.5?"fight":"earn";it.mut=rollMut(it.fish,it.w||w)}any=true;quest("hatch");
     if(view==="lobby"&&G.mode!=="title"){sfx.hatch();if(it.mut)setTimeout(sfx.gold,250);
-      toast(it.mut?`MUTATION! ${MUT[it.mut].name} ${FISH[it.t].name} (${MUT[it.mut].kind==="money"?`${MUT[it.mut].money}x coins`:`${MUT[it.mut].power}x power`})`:`Hatched: ${FISH[it.t].name}${it.fish==="fight"?" (fighter!)":" (earns 3x)"}`,it.mut?MUT[it.mut].col:EGGS[it.t].col)}}
+      const R0=RARITY[spOf(it).r];if(!it.mut&&spOf(it).r)setTimeout(sfx.gold,250);
+      toast(it.mut?`MUTATION! ${MUT[it.mut].name} ${spName(it)} (${MUT[it.mut].kind==="money"?`${MUT[it.mut].money}x coins`:`${MUT[it.mut].power}x power`})`:`Hatched: ${R0.name} ${spName(it)}${it.fish==="fight"?" (fighter!)":" (earner)"}`,it.mut?MUT[it.mut].col:R0.col)}}
   if(any){SV.base.sort((a,b)=>itemScore(b)-itemScore(a));persist();updLobbyHud()}}
 
 /* ================= resize ================= */
@@ -586,7 +628,7 @@ function forgeMenu(tab){G.mode="menu";let body="";
     body=list.length?list.map(({it,i})=>{if(!it.fish)return `<div class="row dim"><span><span class="t" style="color:${EGGS[it.t].col}">${EGGS[it.t].name}</span><br><span class="d">Still an egg. Hatches in ${mmss((it.at-Date.now())/1000)}</span></span><span></span></div>`;
       const max=lv(it)>=MAXLV,c=gearCost(it),fight=it.fish==="fight";
       const now=fight?`${fishDmg(it)} dmg`:`${fmt(itemRate(it))}/s`,next=fight?`${fishDmg({...it,lvl:lv(it)+1})} dmg`:`${fmt(itemRate({...it,lvl:lv(it)+1}))}/s`;
-      return `<div class="row"><span><span class="t" style="color:${it.mut?MUT[it.mut].col:EGGS[it.t].col}">${mutName(it)}${FISH[it.t].name}</span> <span class="d">Lv${lv(it)} ${fight?"fighter":"earner"}</span><br><span class="d">${fight?"Iron fangs":"Gold scales"}: ${now}${max?"":` → ${next}`}</span></span>
+      return `<div class="row"><span><span class="t" style="color:${it.mut?MUT[it.mut].col:EGGS[it.t].col}">${mutName(it)}${spName(it)}</span> <span class="d">Lv${lv(it)} ${fight?"fighter":"earner"}</span><br><span class="d">${fight?"Iron fangs":"Gold scales"}: ${now}${max?"":` → ${next}`}</span></span>
       <button class="buy" data-fish="${i}" type="button" ${max||SV.coins<c?"disabled":""}>${max?"Max":fmt(c)}</button></div>`}).join(""):`<div class="row"><span class="d">No fish yet. Bring eggs home and let them hatch.</span><span></span></div>`}
   show(`<div class="eyebrow">Forge</div><h2>Old Barnacle's Forge</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins.</p>
    <div class="stats" style="grid-template-columns:1fr 1fr"><button class="buy ${tab==="tools"?"":"ghost"}" data-tab="tools" type="button" aria-pressed="${tab==="tools"}">Your tools</button><button class="buy ${tab==="fish"?"":"ghost"}" data-tab="fish" type="button" aria-pressed="${tab==="fish"}">Fish gear</button></div>
@@ -663,16 +705,27 @@ function adminMenu(){G.mode="menu";
     SV.base.sort((a,b)=>itemScore(b)-itemScore(a));if(SV.base.length>cap())SV.base.length=cap();sfx.gold();persist();updLobbyHud();adminMenu()})}
 /* ================= UI: bar, quests, fishdex, pedestal panel, settings, minimap ================= */
 const MKEYS=["none","golden","diamond","electric","inferno"];
-function fishSvg(t,mut,known){const c=!known?"#ffffff1c":mut&&MUT[mut].body?MUT[mut].body:EGGS[t].col,g=known&&mut?`style="filter:drop-shadow(0 0 5px ${MUT[mut].col})"`:"";
-  return `<svg viewBox="0 0 64 38" ${g}><path d="M14 19 L1 6 L5 19 L1 32Z" fill="${c}"/><path d="M28 7 Q34 0 42 7Z" fill="${c}"/><ellipse cx="35" cy="19" rx="24" ry="13" fill="${c}"/>${known?`<circle cx="48" cy="16" r="3.4" fill="#fff"/><circle cx="49" cy="16" r="1.7" fill="#04121f"/>`:`<text x="35" y="24" text-anchor="middle" font-size="14" fill="#ffffff55" font-family="sans-serif">?</text>`}</svg>`}
+function fishSvg(sp,mut,known){const S=SPECIES[sp],sh=S.shape,c=!known?"#ffffff1c":mut&&MUT[mut].body?MUT[mut].body:S.col,fc=!known?"#ffffff14":mut&&MUT[mut].body?MUT[mut].body:S.fin,g=known&&mut?`style="filter:drop-shadow(0 0 5px ${MUT[mut].col})"`:"";
+  const ry={puffer:15,tall:16,chunky:15,ray:6,eel:6,long:8,shark:10}[sh]||13,rx={eel:29,long:27,puffer:16,shark:26}[sh]||24;
+  let extra="";
+  if(sh==="sail"||sh==="tall")extra+=`<path d="M24 ${19-ry+2} Q34 ${sh==="sail"?-6:2} 44 ${19-ry+3}Z" fill="${fc}"/>`;
+  if(sh==="shark")extra+=`<path d="M28 ${19-ry+1} L36 0 L42 ${19-ry+2}Z" fill="${fc}"/>`;
+  if(sh==="puffer")for(let i=0;i<10;i++){const a=i/10*6.283;extra+=`<line x1="${35+Math.cos(a)*15}" y1="${19+Math.sin(a)*15}" x2="${35+Math.cos(a)*20}" y2="${19+Math.sin(a)*19}" stroke="${fc}" stroke-width="2"/>`}
+  if(sh==="ray")extra+=`<ellipse cx="34" cy="19" rx="20" ry="13" fill="${fc}" opacity=".8"/>`;
+  if(sh==="leafy")[[20,8],[30,5],[44,8],[22,30],[40,32]].forEach(([x,y])=>extra+=`<ellipse cx="${x}" cy="${y}" rx="5" ry="2.5" fill="${fc}"/>`);
+  if(sh==="lure")extra+=`<path d="M46 ${19-ry+2} Q54 0 60 6" stroke="${fc}" fill="none" stroke-width="1.5"/>${known?`<circle cx="60" cy="7" r="3" fill="#ffe066"/>`:""}`;
+  if(sh==="crystal")extra+=[22,30,38,46].map(x=>`<path d="M${x} ${19-ry+2} l3 -9 l3 9z" fill="${known?"#e8fdff":fc}"/>`).join("");
+  let over="";if(known&&S.stripe)over=[28,40].map(x=>`<rect x="${x}" y="${19-ry}" width="4" height="${ry*2}" fill="${S.stripe}" opacity=".9"/>`).join("");
+  return `<svg viewBox="0 -2 66 42" ${g}>${extra}<path d="M${35-rx+4} 19 L1 ${sh==="ray"?14:6} L5 19 L1 ${sh==="ray"?24:32}Z" fill="${fc}"/><ellipse cx="35" cy="19" rx="${rx}" ry="${ry}" fill="${c}"/>${over}${known?`<circle cx="${35+rx*.55}" cy="${19-ry*.25}" r="3.2" fill="#fff"/><circle cx="${35+rx*.55+1}" cy="${19-ry*.25}" r="1.6" fill="#04121f"/>`:`<text x="35" y="24" text-anchor="middle" font-size="13" fill="#ffffff55" font-family="sans-serif">?</text>`}</svg>`}
 let dexNew=0;
-function dexScan(){for(const it of SV.base)if(it.fish){const k=`${it.t}:${it.mut||"none"}`;if(!SV.dex[k]){SV.dex[k]=1;dexNew++;const v=Math.round(EGGS[it.t].rate*100*(it.mut?3:1));SV.coins+=v;
-  setTimeout(()=>toast(`New Fishdex entry: ${mutName(it)}${FISH[it.t].name}! +${fmt(v)}`,it.mut?MUT[it.mut].col:EGGS[it.t].col),900);persist()}}}
+function dexScan(){for(const it of SV.base)if(it.fish){const k=`s${spIdx(it)}:${it.mut||"none"}`;if(!SV.dex[k]){SV.dex[k]=1;dexNew++;const v=Math.round(EGGS[it.t].rate*100*(it.mut?3:1)*RARITY[spOf(it).r].mult);SV.coins+=v;
+  setTimeout(()=>toast(`New Fishdex entry: ${mutName(it)}${spName(it)}! +${fmt(v)}`,it.mut?MUT[it.mut].col:EGGS[it.t].col),900);persist()}}}
 function bookMenu(){G.mode="menu";dexNew=0;const n=Object.keys(SV.dex).length;
   let g=`<span></span>${MKEYS.map(m=>`<span class="h">${m==="none"?"Normal":MUT[m].name}</span>`).join("")}`;
-  FISH.forEach((f,t)=>{g+=`<span class="rn" style="color:${EGGS[t].col}">${f.name}</span>`;MKEYS.forEach(m=>{const k=SV.dex[`${t}:${m}`];g+=`<span class="cell" title="${m==="none"?"":MUT[m].name+" "}${f.name}">${fishSvg(t,m==="none"?null:m,k)}</span>`})});
-  show(`<div class="eyebrow">Fishdex</div><h2>${n}/30 found</h2><p>Every new fish pays a bonus the first time it hatches. Mutated ones pay triple. Golden and Diamond come from earners, Electric and Inferno from fighters.</p>
-   <div class="stats" style="grid-template-columns:1fr"><div class="stat"><span class="lbl">Completion</span><span class="bar" style="width:100%;height:8px"><i style="width:${n/30*100}%;background:var(--gold)"></i></span></div></div>
+  SPECIES.forEach((f,i)=>{const seen=MKEYS.some(m=>SV.dex[`s${i}:${m}`]);g+=`<span class="rn" style="color:${seen?f.col:"var(--muted)"}">${seen?f.name:"???"}<br><span style="color:${RARITY[f.r].col};font-weight:600;font-size:9px;letter-spacing:.5px">${RARITY[f.r].name.toUpperCase()} · ${EGGS[f.t].name.replace(" Egg","")}</span></span>`;
+    MKEYS.forEach(m=>{const k=SV.dex[`s${i}:${m}`];g+=`<span class="cell" title="${k?(m==="none"?"":MUT[m].name+" ")+f.name:"Not found yet"}">${fishSvg(i,m==="none"?null:m,k)}</span>`})});
+  show(`<div class="eyebrow">Fishdex</div><h2>${n}/${SPECIES.length*5} found</h2><p>${SPECIES.length} species, 3 per egg: Common, Uncommon and Rare. Every new fish pays a bonus the first time it hatches. Rare and mutated ones pay more. Golden and Diamond come from earners, Electric and Inferno from fighters.</p>
+   <div class="stats" style="grid-template-columns:1fr"><div class="stat"><span class="lbl">Completion</span><span class="bar" style="width:100%;height:8px"><i style="width:${n/(SPECIES.length*5)*100}%;background:var(--gold)"></i></span></div></div>
    <div class="dex">${g}</div>`,[{label:"Close",fn:closeMenu}])}
 const QDEF={
  steal:  {txt:n=>`Steal ${n} egg${n>1?"s":""} from Snapjaw`,goal:()=>[1,2,3][Math.random()*3|0]},
@@ -701,9 +754,10 @@ function pedMenu(i,sellArm){G.mode="menu";const it=SV.base[i];if(!it)return clos
      <h2>${EGGS[it.t].name}</h2><div class="stats"><div class="stat"><span class="lbl">Hatches in</span><b>${mmss(left)}</b></div><div class="stat"><span class="lbl">Earning</span><b class="goldt">${fmt(itemRate(it))}/s</b></div><div class="stat"><span class="lbl">Weather</span><b style="color:${WEATHER[weatherNow().type].col};font-size:15px">${WEATHER[weatherNow().type].name}</b></div></div>
      <p>${it.w?`<b style="color:${WEATHER[it.w].col}">Charged with ${WEATHER[it.w].name}.</b> It hatches as if it were ${WEATHER[it.w].name.toLowerCase()}, whatever the weather is.`:WEATHER[weatherNow().type].desc}</p>`,[{label:"Close",fn:closeMenu},{label:sellArm?`Tap again to sell for ${fmt(v)}`:`Sell egg for ${fmt(v)}`,cls:"link",fn:()=>{if(!sellArm)return pedMenu(i,true);SV.base.splice(i,1);SV.coins+=v;sfx.coin();persist();updLobbyHud();closeMenu()}}]);return}
   const fight=it.fish==="fight",c=gearCost(it),max=lv(it)>=MAXLV,pet=SV.pets.includes(it.id),v=Math.round(itemRate(it)*120);
-  show(`<div class="eyebrow">${spotName(i)} · ${fight?"fighter":"earner"}</div><div class="big-fish">${fishSvg(it.t,it.mut,true)}</div>
-   <h2 style="color:${it.mut?MUT[it.mut].col:EGGS[it.t].col}">${mutName(it)}${FISH[it.t].name}</h2>
+  show(`<div class="eyebrow">${spotName(i)} · ${fight?"fighter":"earner"}</div><div class="big-fish">${fishSvg(spIdx(it),it.mut,true)}</div>
+   <h2 style="color:${it.mut?MUT[it.mut].col:EGGS[it.t].col}">${mutName(it)}${spName(it)}</h2>
    <div class="stats"><div class="stat"><span class="lbl">Level</span><b>${lv(it)}/${MAXLV}</b></div><div class="stat"><span class="lbl">Income</span><b class="goldt">${fmt(itemRate(it))}/s</b></div><div class="stat"><span class="lbl">${fight?"Bite":"Power"}</span><b class="${fight?"bad":""}">${fight?fishDmg(it):"—"}</b></div></div>
+   <p><b style="color:${RARITY[spOf(it).r].col}">${RARITY[spOf(it).r].name}</b> · ${RARITY[spOf(it).r].mult}x stats</p>
    ${it.mut?`<p style="color:${MUT[it.mut].col}">${MUT[it.mut].name} mutation: ${MUT[it.mut].kind==="money"?`${MUT[it.mut].money}x coins`:`${MUT[it.mut].power}x bite damage`}</p>`:""}
    <div class="stats" style="grid-template-columns:1fr 1fr"><button class="buy" id="pUp" type="button" ${max||SV.coins<c?"disabled":""}>${max?"Max level":`Level up · ${fmt(c)}`}</button><button class="buy ${pet?"":"ghost"}" id="pPet" type="button">${pet?"Pet: following":"Make it a pet"}</button></div>`,
    [{label:"Close",fn:closeMenu},{label:sellArm?`Tap again to sell for ${fmt(v)}`:`Sell for ${fmt(v)}`,cls:"link",fn:()=>{if(!sellArm)return pedMenu(i,true);SV.base.splice(i,1);SV.pets=SV.pets.filter(x=>x!==it.id);SV.coins+=v;sfx.coin();persist();updLobbyHud();closeMenu()}}]);
@@ -753,7 +807,7 @@ function drawMini(dt){if(miniC.hidden||!LY)return;miniT-=dt;if(miniT>0)return;mi
   LY.rpeds.forEach((p,i)=>{if(SV.rival[i]!=null)dot(p,2.4,EGGS[SV.rival[i]].col)});
   dot(crab,3.4,"#e2483d");pets.forEach(p=>dot(p,2,"#bfefff"));
   c.fillStyle="#fff";c.strokeStyle="#04121f";c.lineWidth=1.5;c.beginPath();const px=X(P.x),py=Y(P.y),a=P.a;c.moveTo(px+Math.cos(a)*6,py+Math.sin(a)*6);c.lineTo(px+Math.cos(a+2.4)*4,py+Math.sin(a+2.4)*4);c.lineTo(px+Math.cos(a-2.4)*4,py+Math.sin(a-2.4)*4);c.closePath();c.stroke();c.fill()}
-const LAB={t:0,w:"storm",n:1,now:true,m:"random"};
+const LAB={t:0,w:"storm",n:1,now:true,m:"random",sp:"random"};
 function mutOdds(w){const f=w==="storm"?"Electric 32% · Inferno 8%":"Electric 8%",e=w==="rainbow"?"Golden 32% · Diamond 8%":"Golden 8%";return{f,e}}
 function eggLab(){G.mode="menu";const e=EGGS[LAB.t],W=WEATHER[LAB.w],od=mutOdds(LAB.w);
   const pick=(attr,val,on,label,bg)=>`<button class="buy ${on?"":"ghost"}" data-${attr}="${val}" type="button" style="min-width:0;${on&&bg?`background:${bg};`:""}">${label}</button>`;
@@ -762,24 +816,25 @@ function eggLab(){G.mode="menu";const e=EGGS[LAB.t],W=WEATHER[LAB.w],od=mutOdds(
    <h2>${LAB.m!=="random"?MUT[LAB.m].name+" ":""}${W.name} ${e.name}</h2>
    <p>Fighters: <b style="color:${MUT.electric.col}">${od.f}</b><br>Earners: <b style="color:${MUT.golden.col}">${od.e}</b>${LAB.w==="rain"?"<br>Rain-charged eggs also hatch twice as fast.":""}</p>
    <h3>Egg</h3><div class="stats" style="grid-template-columns:repeat(6,1fr)">${EGGS.map((x,i)=>pick("lt",i,LAB.t===i,i+1,x.col)).join("")}</div>
+   <h3>Species</h3><div class="stats" style="grid-template-columns:repeat(4,1fr)">${pick("ls","random",LAB.sp==="random","Random")}${[0,1,2].map(k=>{const i=LAB.t*3+k,S=SPECIES[i];return pick("ls",i,LAB.sp===i,`${S.name}<br><span style="font-size:10px;opacity:.8">${RARITY[S.r].name}</span>`,S.col)}).join("")}</div>
    <h3>Weather charge</h3><div class="stats" style="grid-template-columns:repeat(4,1fr)">${Object.entries(WEATHER).map(([k,x])=>pick("lw",k,LAB.w===k,x.name==="Thunderstorm"?"Storm":x.name,x.col)).join("")}</div>
    <h3>Mutation</h3><div class="stats" style="grid-template-columns:repeat(5,1fr)">${pick("lm","random",LAB.m==="random","Weather odds")}${Object.entries(MUT).map(([k,x])=>pick("lm",k,LAB.m===k,x.name,x.col)).join("")}</div>
    ${LAB.m!=="random"?`<p style="color:${MUT[LAB.m].col}">Guaranteed ${MUT[LAB.m].name} ${MUT[LAB.m].kind==="money"?"earner":"fighter"}.</p>`:""}
    <h3>How many</h3><div class="stats" style="grid-template-columns:repeat(4,1fr)">${[1,3,5,10].map(n=>pick("ln",n,LAB.n===n,n)).join("")}</div>
    <h3>Hatch</h3><div class="stats" style="grid-template-columns:1fr 1fr">${pick("lh",1,LAB.now,"Instantly")}${pick("lh",0,!LAB.now,"Normal timer")}</div>
    <p class="keys">Base has ${cap()-SV.base.length} free spot${cap()-SV.base.length===1?"":"s"}. When it's full, weaker fish get replaced and extra eggs are sold.</p>`,
-   [{label:`Spawn ${LAB.n>1?LAB.n+" eggs":"egg"}`,fn:()=>{for(let i=0;i<LAB.n;i++)addEgg(LAB.t,true,LAB.w,LAB.m==="random"?null:LAB.m);
+   [{label:`Spawn ${LAB.n>1?LAB.n+" eggs":"egg"}`,fn:()=>{for(let i=0;i<LAB.n;i++)addEgg(LAB.t,true,LAB.w,LAB.m==="random"?null:LAB.m,LAB.sp==="random"?null:LAB.sp);
       if(LAB.now){SV.base.forEach(it=>{if(!it.fish&&it.w===LAB.w&&it.t===LAB.t)it.at=0});hatchCheck()}else{sfx.egg();toast(`Spawned ${LAB.n} ${W.name} ${e.name}${LAB.n>1?"s":""}`,W.col)}
       persist();updLobbyHud();eggLab()}},
     {label:"Back to admin",cls:"link",fn:adminMenu}]);
   const bind=(a,f)=>$("card").querySelectorAll(`[data-${a}]`).forEach(b=>b.onclick=()=>{f(b.dataset[a]);eggLab()});
-  bind("lt",v=>LAB.t=+v);bind("lm",v=>LAB.m=v);bind("lw",v=>LAB.w=v);bind("ln",v=>LAB.n=+v);bind("lh",v=>LAB.now=v==="1")}
+  bind("lt",v=>{LAB.t=+v;LAB.sp="random"});bind("ls",v=>LAB.sp=v==="random"?"random":+v);bind("lm",v=>LAB.m=v);bind("lw",v=>LAB.w=v);bind("ln",v=>LAB.n=+v);bind("lh",v=>LAB.now=v==="1")}
 function resetAsk(){show(`<div class="eyebrow bad">Reset</div><h2>Wipe your save?</h2><p>All coins, eggs, fish and gear will be gone.</p>`,
   [{label:"Keep my save",fn:shopMenu},{label:"Yes, wipe it",cls:"link",fn:()=>{SV=fresh();SV.seen=true;SV.dex={};SV.quests=[];SV.pets=[];fillQuests();restockRival();persist();enterLobby()}}])}
 function dockMenu(){G.mode="menu";const sq=squad();
   const rows=STAGES.map((s,i)=>`<div class="row ${i<=SV.best+1?"":"dim"}"><span><span class="t">${i+1}. ${s.name}</span> <span class="d">${s.depth}</span><br><span class="d">Grab ${s.quota} eggs · ${s.value} each · nest: <span style="color:${EGGS[i].col}">${EGGS[i].name}</span></span></span>
     <span class="tag ${s.boss?"bad":"d"}">${s.boss?"BOSS":i<=SV.best?"reached":"—"}</span></div>`).join("");
-  const sqRows=sq.length?sq.map(f=>`<div class="row"><span><span class="t" style="color:${f.mut?MUT[f.mut].col:EGGS[f.t].col}">${mutName(f)}${FISH[f.t].name}</span><br><span class="d">Lv${lv(f)} · bites for ${fishDmg(f)} damage</span></span><span class="tag bad">fighter</span></div>`).join("")
+  const sqRows=sq.length?sq.map(f=>`<div class="row"><span><span class="t" style="color:${f.mut?MUT[f.mut].col:EGGS[f.t].col}">${mutName(f)}${spName(f)}</span><br><span class="d">Lv${lv(f)} · bites for ${fishDmg(f)} damage</span></span><span class="tag bad">fighter</span></div>`).join("")
     :`<div class="row"><span class="d">No fighters yet. About half of your eggs hatch into fighters. Without them you can only dodge Mother.</span><span></span></div>`;
   show(`<div class="eyebrow">Dive Dock</div><h2>Start a run</h2><p>Every run starts in the Shallows. After each stage, surface at the boat to bank your loot or take the whirlpool deeper.</p>
    <div class="list">${rows}</div><h3>Your squad (${sq.length}/${squadMax()})</h3><div class="list">${sqRows}</div>`,
@@ -793,7 +848,7 @@ function spawnBaby(edge){const s=S();const gold=Math.random()<.12;let x,y;
   attachBaby(b);return b}
 function placePortal(){portal={x:nest.x<W/2?W*.84:W*.16,y:H-80}}
 function startRun(){RUN={haul:0,eggs:[],bosses:0,drove:0};G.lives=1+SV.up.shield;
-  comp=squad().map((it,i)=>({t:it.t,dmg:fishDmg(it),lvl:lv(it),mut:it.mut,x:W/2,y:SURF+60,vx:0,vy:0,cd:0,ph:rand(0,6),i}));
+  comp=squad().map((it,i)=>({src:it,t:it.t,dmg:fishDmg(it),lvl:lv(it),mut:it.mut,x:W/2,y:SURF+60,vx:0,vy:0,cd:0,ph:rand(0,6),i}));
   G.stage=0;startStage()}
 function startStage(){const s=S();
   Object.assign(P,{x:W/2,y:SURF+90,vx:0,vy:0,a:Math.PI/2,dash:0,cd:0,inv:1.5,carry:null});
