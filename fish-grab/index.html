@@ -715,8 +715,9 @@ function settingsMenu(){G.mode="menu";const tg=(k,on,label)=>`<button class="buy
    <div class="row"><span><span class="t">Graphics</span><br><span class="d">Low turns off shadows and sharpness. Use it if the game feels slow.</span></span>${tg("quality",SET.quality==="high",SET.quality==="high"?"High":"Low")}</div>
    <div class="row"><span><span class="t">World labels</span><br><span class="d">Names and numbers floating over things.</span></span>${tg("labels",SET.labels,SET.labels?"Shown":"Hidden")}</div>
    <div class="row"><span><span class="t">Minimap</span><br><span class="d">Small island map in the corner (wide screens only).</span></span>${tg("minimap",SET.minimap,SET.minimap?"Shown":"Hidden")}</div>
-   <div class="row"><span><span class="t">Admin panel</span><br><span class="d">Double-tap an empty spot in your base. Set a code inside it to lock it.</span></span><span></span></div>
+   <div class="row"><span><span class="t">Admin panel</span><br><span class="d">Or double-tap anywhere in your base. Set a code inside it to lock it.</span></span><button class="buy" id="openAdm" type="button">Open</button></div>
   </div>`,[{label:"Done",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
+  $("openAdm").onclick=()=>{audio();openAdmin()};
   $("card").querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>{const k=b.dataset.set;if(k==="quality")SET.quality=SET.quality==="high"?"low":"high";else SET[k]=!SET[k];saveSet();syncMute();
     $("labels").hidden=!SET.labels;if(k==="quality"){resize();lScene.traverse(o=>{if(o.material)o.material.needsUpdate=true})}updChrome();settingsMenu()})}
 function chrome(on){$("bar").hidden=!on;$("questPill").hidden=!on;document.body.classList.toggle("inLobby",on);updChrome();if(on&&LY)fitLobbyCam()}
@@ -942,12 +943,14 @@ function toWorld(e){const r=cv.getBoundingClientRect();ndc.set((e.clientX-r.left
 addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="Space"&&(G.mode==="dive"||G.mode==="lobby")){e.preventDefault();doDash()}});
 addEventListener("keyup",e=>{keys[e.code]=false});
 cv.addEventListener("pointermove",e=>{toWorld(e);if(e.pointerType==="mouse")pointer.active=true});
-let lastTap=0;
+let lastTap=0,pedTimer=0;
 cv.addEventListener("pointerdown",e=>{audio();toWorld(e);pointer.active=true;
-  if(G.mode==="lobby"&&view==="lobby"){const fo=G.floor||0,fp=new THREE.Plane(V(0,1,0),-(fo*FH+8)),h2=new THREE.Vector3();
-    if(ray.ray.intersectPlane(fp,h2)){const q={x:h2.x+W/2,y:h2.z+H/2};const k=LY.peds.findIndex((p,k)=>k<slots()&&SV.base[fo*slots()+k]&&near(q,p,26));
-      if(k>=0){P.vx=P.vy=0;pointer.active=false;pedMenu(fo*slots()+k);return}}}
-  if(G.mode==="lobby"&&view==="lobby"&&inRect(pointer,LY.base)){const n=performance.now();if(n-lastTap<400){lastTap=0;P.vx=P.vy=0;pointer.active=false;openAdmin();return}lastTap=n}
+  if(G.mode==="lobby"&&view==="lobby"){const fo=G.floor||0,fp=new THREE.Plane(V(0,1,0),-(fo*FH+8)),h2=new THREE.Vector3();let q=null,k=-1;
+    if(ray.ray.intersectPlane(fp,h2)){q={x:h2.x+W/2,y:h2.z+H/2};k=LY.peds.findIndex((p,k)=>k<slots()&&SV.base[fo*slots()+k]&&near(q,p,26))}
+    const inBase=inRect(pointer,LY.base)||(q&&inRect(q,LY.base)),n=e.timeStamp||performance.now();
+    if(inBase&&n-lastTap<450){clearTimeout(pedTimer);lastTap=0;P.vx=P.vy=0;pointer.active=false;openAdmin();return}
+    if(inBase)lastTap=n;
+    if(k>=0){P.vx=P.vy=0;pointer.active=false;const idx=fo*slots()+k;clearTimeout(pedTimer);pedTimer=setTimeout(()=>{if(G.mode==="lobby")pedMenu(idx)},330);return}}
   if(e.pointerType==="mouse")doDash()});
 cv.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse")pointer.active=false});
 cv.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse")pointer.active=false});
