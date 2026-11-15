@@ -206,11 +206,14 @@ try{let r=JSON.parse(localStorage.getItem(KEY)||"null");
 function persist(){SV.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(SV))}catch(e){}}
 const uid=()=>Math.random().toString(36).slice(2,9);
 SV.dex=SV.dex||{};SV.quests=SV.quests||[];SV.pets=SV.pets||[];SV.base.forEach(it=>{if(!it.id)it.id=uid();if(it.fish)SV.dex[`${it.t}:${it.mut||"none"}`]=1});
-const slots=()=>4+SV.up.slots;
+SV.adm=SV.adm||{};
+const slots=()=>SV.adm.slots||4+SV.up.slots;
+const squadMax=()=>SV.adm.squad||1+SV.up.squad;
+const petMax=()=>SV.adm.pets||3;
 const itemRate=it=>EGGS[it.t].rate*(it.fish==="earn"?3:it.fish==="fight"?1.5:1)*(1+.3*(lv(it)-1))*(it.mut?MUT[it.mut].money:1);
 const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0)+(lv(it)-1)*.2+(it.mut?(MUT[it.mut].money+MUT[it.mut].power-2)*1.2:0);
 const rate=()=>SV.base.reduce((a,it)=>a+itemRate(it),0);
-const squad=()=>SV.base.filter(f=>f.fish==="fight").sort((a,b)=>fishDmg(b)-fishDmg(a)).slice(0,1+SV.up.squad);
+const squad=()=>SV.base.filter(f=>f.fish==="fight").sort((a,b)=>fishDmg(b)-fishDmg(a)).slice(0,squadMax());
 let offline=0;{const el=Math.min(7200,Math.max(0,(Date.now()-SV.last)/1000));offline=Math.floor(rate()*el);SV.vault+=offline}
 const fmt=n=>{n=Math.floor(n);return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1)+"M":n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+"k":n.toLocaleString()};
 const mmss=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
@@ -357,7 +360,7 @@ function layout(){const land=W>=H*0.95;const top=SURF*.4;
       dock:{x:isl.x+isl.w*.8,y:isl.y+isl.h*.47,r:32},
       spawn:{x:W/2,y:isl.y+isl.h*.455}};
     LY.collect={x:W/2,y:LY.base.y+LY.base.h+28,r:22};}
-  const b=LY.base,cols=LY.land?2:5,rows=LY.land?5:2;LY.peds=[];
+  const b=LY.base,cols=LY.land?3:6,rows=LY.land?4:2;LY.peds=[];
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)LY.peds.push({x:b.x+b.w*(c+.5)/cols,y:b.y+20+(b.h-24)*(r+.5)/rows});
   const rv=LY.rival;LY.rpeds=[0,1,2].map(i=>LY.land?{x:rv.x+rv.w*.5,y:rv.y+20+(rv.h-24)*(i+.5)/3}:{x:rv.x+rv.w*(i+.5)/3,y:rv.y+rv.h*.55});
 }
@@ -603,6 +606,10 @@ function adminMenu(){G.mode="menu";
   show(`<div class="eyebrow bad">Admin panel</div><h2>Base Control</h2><p>Coins <b class="goldt">${fmt(SV.coins)}</b> · Base ${SV.base.length}/${slots()} · God mode <b class="${G.god?"good":"bad"}">${G.god?"on":"off"}</b></p>
   <div class="list">
    ${row("Coins","Add coins to your wallet.",btn("c1","+10k")+btn("c2","+1M"))}
+   <div class="row"><span><span class="t">Team size</span><br><span class="d">How many fish follow you, fight with you, and fit in your base.</span></span><span></span></div>
+   ${[["pets","Pets following you",petMax(),1,12],["squad","Fighters on dives",squadMax(),1,12],["slots","Base pedestals",slots(),4,12]].map(([k,l,v,lo,hi])=>`<div class="row" style="grid-template-columns:1fr auto"><span class="d" style="color:var(--foam);font-weight:600">${l}</span>
+     <span style="display:flex;gap:6px;align-items:center"><button class="buy ghost" data-ts="${k}" data-d="-1" type="button" style="min-width:36px" ${v<=lo?"disabled":""}>−</button><b style="font:400 20px var(--f-display);min-width:28px;text-align:center">${v}</b><button class="buy ghost" data-ts="${k}" data-d="1" type="button" style="min-width:36px" ${v>=hi?"disabled":""}>+</button>
+     ${[3,6,7,11].filter(n=>n>=lo&&n<=hi).map(n=>`<button class="buy ${v===n?"":"ghost"}" data-ts="${k}" data-set="${n}" type="button" style="min-width:0;padding:6px 8px">${n}</button>`).join("")}</span></div>`).join("")}
    ${row("Egg Lab","Spawn any egg, charge it with any weather, and hatch it instantly.",btn("lab","Open Egg Lab"))}
    ${row("Eggs","Put an egg of any tier in your base.",EGGS.map((e,i)=>`<button class="buy" data-egg="${i}" type="button" style="background:${e.col};min-width:40px">${i+1}</button>`).join(""))}
    ${row("Fighter","Add a hatched Abyss Angler fighter at Lv10.",btn("fish","Add"))}
@@ -626,6 +633,10 @@ function adminMenu(){G.mode="menu";
     if(a==="lock"){G.adminOk=false;toast("Admin panel locked","#ffd166");return closeMenu()}if(a==="chg")return setCodeMenu();
     if(a==="rm"){ADM.hash="";saveAdm();toast("Code removed","#ffd166");return adminMenu()}act[b.dataset.a]();SV.base.sort((a,b)=>itemScore(b)-itemScore(a));sfx.buy();persist();updLobbyHud();adminMenu()});
   $("card").querySelectorAll("[data-egg]").forEach(b=>b.onclick=()=>{addEgg(+b.dataset.egg);adminMenu()});
+  $("card").querySelectorAll("[data-ts]").forEach(b=>b.onclick=()=>{const k=b.dataset.ts,cur=k==="pets"?petMax():k==="squad"?squadMax():slots(),lo=k==="slots"?4:1;
+    let v=b.dataset.set?+b.dataset.set:cur+(+b.dataset.d);v=Math.max(lo,Math.min(12,v));SV.adm[k]=v;
+    if(k==="slots"&&SV.base.length>v){SV.base.sort((a,b)=>itemScore(b)-itemScore(a));SV.base.length=v}
+    if(k==="pets"&&SV.pets.length>v)SV.pets.length=v;sfx.buy();persist();updLobbyHud();adminMenu()});
   $("card").querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{G.wOver={type:b.dataset.w,until:Date.now()+WLEN};sfx.buy();updLobbyHud();adminMenu()});
   $("card").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{const m=b.dataset.m;SV.base.push({id:uid(),t:3,at:0,fish:MUT[m].kind==="money"?"earn":"fight",mut:m,lvl:1});
     SV.base.sort((a,b)=>itemScore(b)-itemScore(a));if(SV.base.length>slots())SV.base.length=slots();sfx.gold();persist();updLobbyHud();adminMenu()})}
@@ -675,7 +686,7 @@ function pedMenu(i,sellArm){G.mode="menu";const it=SV.base[i];if(!it)return clos
    <div class="stats" style="grid-template-columns:1fr 1fr"><button class="buy" id="pUp" type="button" ${max||SV.coins<c?"disabled":""}>${max?"Max level":`Level up · ${fmt(c)}`}</button><button class="buy ${pet?"":"ghost"}" id="pPet" type="button">${pet?"Pet: following":"Make it a pet"}</button></div>`,
    [{label:"Close",fn:closeMenu},{label:sellArm?`Tap again to sell for ${fmt(v)}`:`Sell for ${fmt(v)}`,cls:"link",fn:()=>{if(!sellArm)return pedMenu(i,true);SV.base.splice(i,1);SV.pets=SV.pets.filter(x=>x!==it.id);SV.coins+=v;sfx.coin();persist();updLobbyHud();closeMenu()}}]);
   $("pUp").onclick=()=>{if(!max&&SV.coins>=c){SV.coins-=c;it.lvl=lv(it)+1;sfx.clang();quest("upgrade");persist();updLobbyHud();pedMenu(SV.base.indexOf(it))}};
-  $("pPet").onclick=()=>{if(pet)SV.pets=SV.pets.filter(x=>x!==it.id);else{SV.pets.push(it.id);if(SV.pets.length>3)SV.pets.shift()}sfx.buy();persist();pedMenu(SV.base.indexOf(it))}}
+  $("pPet").onclick=()=>{if(pet)SV.pets=SV.pets.filter(x=>x!==it.id);else{SV.pets.push(it.id);if(SV.pets.length>petMax())SV.pets.shift()}sfx.buy();persist();pedMenu(SV.base.indexOf(it))}}
 function settingsMenu(){G.mode="menu";const tg=(k,on,label)=>`<button class="buy toggle ${on?"":"ghost"}" data-set="${k}" type="button">${label}</button>`;
   show(`<div class="eyebrow">Settings</div><h2>Settings</h2><div class="list">
    <div class="row"><span><span class="t">Sound</span><br><span class="d">Sound effects and music cues.</span></span>${tg("sound",SET.sound,SET.sound?"On":"Off")}</div>
@@ -737,7 +748,7 @@ function dockMenu(){G.mode="menu";const sq=squad();
   const sqRows=sq.length?sq.map(f=>`<div class="row"><span><span class="t" style="color:${f.mut?MUT[f.mut].col:EGGS[f.t].col}">${mutName(f)}${FISH[f.t].name}</span><br><span class="d">Lv${lv(f)} · bites for ${fishDmg(f)} damage</span></span><span class="tag bad">fighter</span></div>`).join("")
     :`<div class="row"><span class="d">No fighters yet. About half of your eggs hatch into fighters. Without them you can only dodge Mother.</span><span></span></div>`;
   show(`<div class="eyebrow">Dive Dock</div><h2>Start a run</h2><p>Every run starts in the Shallows. After each stage, surface at the boat to bank your loot or take the whirlpool deeper.</p>
-   <div class="list">${rows}</div><h3>Your squad (${sq.length}/${1+SV.up.squad})</h3><div class="list">${sqRows}</div>`,
+   <div class="list">${rows}</div><h3>Your squad (${sq.length}/${squadMax()})</h3><div class="list">${sqRows}</div>`,
    [{label:"Start run",fn:startRun},{label:"Stay on the island",cls:"link",fn:closeMenu}])}
 
 /* ================= dive logic ================= */
@@ -781,10 +792,10 @@ function hitMom(dmg,c){if(mom.gone||mom.hp<=0)return;mom.hp-=dmg;mom.stun=.25;sf
     else{sfx.clear();toast(`You drove her off! +${fmt(bonus)}`,"#7fe0a8")}
     mom.state="leave";mom.gone=true;shake=.5;updHud()}}
 function updateComp(dt){const hunting=mom.state==="hunt"&&!mom.gone&&mom.x>-60&&mom.x<W+60&&mom.y<H+60;
-  comp.forEach((c,i)=>{c.ph+=dt*10;c.cd-=dt;let tx,ty,spd=300;const a=i*2.1+G.t*1.6;
+  const cn=comp.length;comp.forEach((c,i)=>{c.ph+=dt*10;c.cd-=dt;let tx,ty,spd=300;const a=i*(6.283/cn)+G.t*1.6;
     if(hunting&&Math.hypot(mom.x-P.x,mom.y-P.y)<380){tx=mom.x+Math.cos(a*2)*mom.r*.35;ty=mom.y+Math.sin(a*2)*mom.r*.25;spd=430;
       if(Math.hypot(c.x-mom.x,c.y-mom.y)<mom.r*.95&&c.cd<=0){c.cd=.7;hitMom(c.dmg,c)}}
-    else{tx=P.x+Math.cos(a)*46;ty=P.y+Math.sin(a)*32}
+    else{tx=P.x+Math.cos(a)*(40+cn*6);ty=P.y+Math.sin(a)*(28+cn*4)}
     const dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy)||1,v=Math.min(spd,d*5);
     c.vx+=(dx/d*v-c.vx)*Math.min(1,6*dt);c.vy+=(dy/d*v-c.vy)*Math.min(1,6*dt);c.x+=c.vx*dt;c.y+=c.vy*dt;
     c.y=Math.max(SURF+10,Math.min(H-20,c.y))})}
@@ -910,7 +921,7 @@ function doDash(){if((G.mode!=="dive"&&G.mode!=="lobby")||P.cd>0)return;P.dash=.
 
 /* ================= sync + render ================= */
 function blink(){return P.inv>0&&((P.inv*10)|0)%2}
-function syncPets(now){const pinned=SV.pets.map(id=>SV.base.find(f=>f.id===id&&f.fish)).filter(Boolean);const want=(pinned.length?pinned:SV.base.filter(f=>f.fish)).slice(0,3);const key=want.map(it=>`${it.t}${it.fish}${lv(it)}${it.mut||""}`).join("|");
+function syncPets(now){const pinned=SV.pets.map(id=>SV.base.find(f=>f.id===id&&f.fish)).filter(Boolean);const want=(pinned.length?pinned:SV.base.filter(f=>f.fish)).slice(0,petMax());const key=want.map(it=>`${it.t}${it.fish}${lv(it)}${it.mut||""}`).join("|");
   if(key!==petKey){pets.forEach(p=>lDyn.remove(p.g));petKey=key;
     if(!bubbleMat)bubbleMat=new THREE.MeshStandardMaterial({color:"#bfefff",transparent:true,opacity:.28,roughness:.05,metalness:.2,depthWrite:false});
     pets=want.map((it,i)=>{const g=new THREE.Group();const f=fishFor(it,24+it.t*2+lv(it));g.add(f.g);
