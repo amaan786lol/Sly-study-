@@ -75,7 +75,7 @@ button:focus-visible{outline:3px solid var(--kelp);outline-offset:3px}
 #bar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #bar .badge{position:absolute;top:2px;right:8px;min-width:15px;height:15px;border-radius:8px;background:var(--danger);color:#fff;font:700 10px/15px var(--f-body);padding:0 3px}
 @media (pointer:coarse){#bar{left:max(12px,env(safe-area-inset-left,0px));transform:none}#bar button{width:46px}body.inLobby #dash{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
-@media (max-width:420px){#bar button span.t{display:none}#bar button{width:42px;padding:9px 0}}
+@media (max-width:420px){#bar button span.t{display:none}#bar button{width:40px;padding:9px 0}}
 @media (max-width:480px){.hideNarrow{display:none!important}.hud{gap:6px}.chip{padding:4px 8px}}
 #questPill{position:absolute;left:max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:4px;max-width:min(300px,55vw);padding:7px 11px;border-radius:12px;
   background:#04121fc4;border:1px solid #ffffff1f;color:var(--foam);font:600 12px var(--f-body);text-align:left;cursor:pointer}
@@ -100,6 +100,7 @@ body.menuOpen #uiToggle{display:none}body.uiHidden #uiToggle:hover{opacity:1}
 .dex svg{width:84%;height:auto}
 .big-fish{width:150px;max-width:60%;height:auto}
 .toggle{min-width:110px}
+body.menuOpen #toast{top:auto;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;font-size:17px;background:#04121fe6;border:1px solid #ffffff22;border-radius:12px;padding:8px 14px;width:auto;max-width:min(90vw,520px);text-shadow:none}
 #toast{position:absolute;left:50%;top:22%;transform:translateX(-50%);font:400 clamp(20px,5.5vw,32px) var(--f-display);pointer-events:none;
   text-shadow:0 3px 0 #04121f,0 0 20px #000;opacity:0;transition:opacity .25s;text-align:center;width:min(90vw,640px)}
 </style>
@@ -139,6 +140,7 @@ body.menuOpen #uiToggle{display:none}body.uiHidden #uiToggle:hover{opacity:1}
     <button type="button" data-bar="dive"><svg viewBox="0 0 24 24"><path d="M3 10c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/><path d="M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/></svg><span class="t">Dive</span></button>
     <button type="button" data-bar="book"><svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4z"/><path d="M20 5h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6z"/></svg><span class="t">Fishdex</span><span class="badge" id="dexBadge" hidden></span></button>
     <button type="button" data-bar="quests"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span class="t">Quests</span><span class="badge" id="qBadge" hidden></span></button>
+    <button type="button" data-bar="daily"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/></svg><span class="t">Daily</span><span class="badge" id="dayBadge" hidden>!</span></button>
     <button type="button" data-bar="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="t">Settings</span></button>
   </nav>
   <div id="overlay"><div class="card" id="card"><p>Loading the reef…</p></div></div>
@@ -262,6 +264,7 @@ try{let r=JSON.parse(localStorage.getItem(KEY)||"null");
   if(r)SV=Object.assign(fresh(),r,{up:Object.assign(fresh().up,r.up||{}),tools:Object.assign(fresh().tools,r.tools||{})})}catch(e){}
 function persist(){SV.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(SV))}catch(e){}}
 const uid=()=>Math.random().toString(36).slice(2,9);
+SV.decor=SV.decor||{};SV.daily=SV.daily||{day:-1,last:""};if(SV.crabLoot){SV.base.push(SV.crabLoot);SV.crabLoot=null}
 SV.dex=SV.dex||{};SV.quests=SV.quests||[];SV.pets=SV.pets||[];SV.base.forEach(it=>{if(!it.id)it.id=uid();if(it.fish)SV.dex[`s${spIdx(it)}:${it.mut||"none"}`]=1});
 for(const k of Object.keys(SV.dex))if(/^\d:/.test(k)){const[t,m]=k.split(":");SV.dex[`s${t*3}:${m}`]=1;delete SV.dex[k]}
 SV.adm=SV.adm||{};
@@ -271,7 +274,15 @@ const squadMax=()=>SV.adm.squad||1+SV.up.squad;
 const petMax=()=>SV.adm.pets||3;
 const itemRate=it=>EGGS[it.t].rate*spMult(it)*(it.fish==="earn"?3:it.fish==="fight"?1.5:1)*(1+.3*(lv(it)-1))*(it.mut?MUT[it.mut].money:1);
 const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0)+(lv(it)-1)*.2+(it.fish?spOf(it).r*.6:0)+(it.mut?(MUT[it.mut].money+MUT[it.mut].power-2)*1.2:0);
-const rate=()=>SV.base.reduce((a,it)=>a+itemRate(it),0);
+const DECOR=[
+ {k:"lamp",    name:"Lantern Post",      bonus:.03,cost:2000},
+ {k:"flag",    name:"Pirate Flag",       bonus:.04,cost:6000},
+ {k:"arch",    name:"Coral Arch",        bonus:.06,cost:20000},
+ {k:"statue",  name:"Golden Fish Statue",bonus:.08,cost:60000},
+ {k:"fountain",name:"Shell Fountain",    bonus:.10,cost:180000},
+ {k:"chest",   name:"Treasure Chest",    bonus:.15,cost:600000}];
+const decoMult=()=>1+DECOR.reduce((a,d)=>a+(SV.decor&&SV.decor[d.k]?d.bonus:0),0);
+const rate=()=>SV.base.reduce((a,it)=>a+itemRate(it),0)*decoMult();
 const squad=()=>SV.base.filter(f=>f.fish==="fight").sort((a,b)=>fishDmg(b)-fishDmg(a)).slice(0,squadMax());
 let offline=0;{const el=Math.min(7200,Math.max(0,(Date.now()-SV.last)/1000));offline=Math.floor(rate()*el);SV.vault+=offline}
 const fmt=n=>{n=Math.floor(n);return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1)+"M":n>=1e4?(n/1e3).toFixed(n>=1e5?0:1)+"k":n.toLocaleString()};
@@ -444,6 +455,7 @@ const lStatic=new THREE.Group(),lDyn=new THREE.Group();lScene.add(lStatic,lDyn);
 lScene.background=col("#7fd3e6");lScene.fog=new THREE.Fog("#7fd3e6",1500,5000);
 const hemi=new THREE.HemisphereLight("#ffffff","#3a6a7a",.55);lScene.add(hemi);
 const sun=new THREE.DirectionalLight("#fff3dd",.75);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);lScene.add(sun,sun.target);
+let crabLootSlot=null,decoG=null;
 let pets=[],petKey="",bubbleMat=null,rain=null,rainPos=null,rainbowG=null,boltT=0,lastFx=0;const RAIN_N=600;
 let walker,crabM,pedSlots=[],rivalSlots=[],carrySlotL,ring,pedMeshes=[],decks=[],water,forgeFire,forgeLight,walkerSpear;
 function makeSpear(t,len=46){const g=new THREE.Group(),c=TOOLS.spear.tiers[t-1].c;
@@ -466,6 +478,24 @@ function palm(x,y,s=1){const g=new THREE.Group();const tr=mesh(new THREE.Cylinde
   const lm=mat("#2e8a55");for(let i=0;i<6;i++){const l=mesh(SPH,lm,true);l.scale.set(28*s,3*s,8*s);const a=i/6*Math.PI*2;l.position.set(Math.cos(a)*20*s+4*s,58*s,Math.sin(a)*20*s);l.rotation.y=-a;l.rotation.z=-.35;g.add(l)}
   const co=mat("#6b4a2a");for(let i=0;i<3;i++){const c=mesh(SPH,co,true);c.scale.setScalar(4*s);c.position.set(6*s+Math.cos(i*2)*4*s,55*s,Math.sin(i*2)*4*s);g.add(c)}
   g.position.copy(Lo(x,y,0));return g}
+const DECO_SPOTS_L=[[.2,.93],[.32,.93],[.68,.93],[.8,.93],[.4,.05],[.6,.05]],DECO_SPOTS_P=[[.1,.4],[.9,.4],[.1,.58],[.9,.585],[.32,.62],[.68,.62]];
+function buildDecor(){if(!decoG)return;clearGroup(decoG);const I=LY.isl,spots=LY.land?DECO_SPOTS_L:DECO_SPOTS_P;
+  DECOR.forEach((d,i)=>{if(!SV.decor[d.k])return;const [fx,fy]=spots[i],g=new THREE.Group();g.position.copy(Lo(I.x+I.w*fx,I.y+I.h*fy,2));g.userData.k=d.k;
+    const dark=mat("#3a2a20"),gold=mat("#ffcf4a",{metalness:.8,roughness:.25,emissive:col("#7a5200"),emissiveIntensity:.3});
+    if(d.k==="lamp"){const p=mesh(new THREE.CylinderGeometry(2,2.5,46,8),dark,true);p.position.y=23;g.add(p);const b=mesh(SPH,mat("#fff1b0",{emissive:col("#ffd166"),emissiveIntensity:1.4}));b.scale.setScalar(7);b.position.y=50;g.add(b);g.userData.glow=b}
+    if(d.k==="flag"){const p=mesh(new THREE.CylinderGeometry(1.6,1.6,70,6),dark,true);p.position.y=35;g.add(p);const f=new THREE.Group();f.position.set(1,62,0);const c=mesh(new THREE.BoxGeometry(30,18,1),mat("#1b1b1f"),true);c.position.x=15;f.add(c);
+      const sk=mesh(SPH,bas("#ffffff"));sk.scale.set(4,4,1.2);sk.position.set(15,1,.6);f.add(sk);g.add(f);g.userData.flag=f}
+    if(d.k==="arch"){const a=mesh(new THREE.TorusGeometry(22,6,8,20,Math.PI),mat("#ff7aa2",{roughness:.9}),true);g.add(a);for(let j=0;j<6;j++){const b=mesh(SPH,mat(["#ff9f68","#ffd166","#c59bff"][j%3]));b.scale.setScalar(4);const t=j/5*Math.PI;b.position.set(Math.cos(t)*22,Math.sin(t)*22+3,5);g.add(b)}}
+    if(d.k==="statue"){const ped=mesh(new THREE.BoxGeometry(22,16,22),mat("#cfc6b0"),true);ped.position.y=8;g.add(ped);const f=makeFish(34,"#ffcf4a",{fin:"#ffb703",shape:"tall",shadow:true});f.body.material.metalness=.85;f.body.material.roughness=.25;
+      f.g.position.y=36;f.g.rotation.z=.5;g.add(f.g);g.userData.fish=f}
+    if(d.k==="fountain"){const b=mesh(new THREE.CylinderGeometry(22,24,10,20),mat("#d8cfc0"),true);b.position.y=5;g.add(b);const w=mesh(new THREE.CylinderGeometry(19,19,2,20),mat("#4fc6dc",{emissive:col("#2fa9c9"),emissiveIntensity:.4,roughness:.1}));w.position.y=10;g.add(w);
+      const c=mesh(new THREE.CylinderGeometry(3,4,22,8),mat("#d8cfc0"),true);c.position.y=21;g.add(c);const sh=mesh(SPH,mat("#ffc8d8"),true);sh.scale.set(9,4,9);sh.position.y=33;g.add(sh);
+      const sp=mesh(SPH,mat("#bfefff",{transparent:true,opacity:.6}));sp.scale.set(3,8,3);sp.position.y=42;g.add(sp);g.userData.spout=sp}
+    if(d.k==="chest"){const b=mesh(new THREE.BoxGeometry(30,16,20),mat("#7a4c30"),true);b.position.y=8;g.add(b);const lid=mesh(new THREE.CylinderGeometry(10,10,30,12,1,false,0,Math.PI),mat("#8a5a3b"),true);lid.rotation.z=Math.PI/2;lid.position.y=16;g.add(lid);
+      const tr=mesh(new THREE.BoxGeometry(31,3,21),gold);tr.position.y=12;g.add(tr);for(let j=0;j<5;j++){const c=mesh(new THREE.CylinderGeometry(3,3,1.2,10),gold);c.position.set(rand(-12,12),17+rand(0,6),rand(-6,6));c.rotation.x=rand(0,1);g.add(c)}g.userData.glow=tr}
+    g.scale.setScalar(1.45);decoG.add(g)})}
+function animDecor(now){if(!decoG)return;decoG.children.forEach((g,i)=>{const u=g.userData;if(u.glow)u.glow.material.emissiveIntensity=(u.k==="lamp"?1.2:.3)+.25*Math.sin(now*3+i);
+  if(u.flag)u.flag.rotation.y=Math.sin(now*2.2)*.35;if(u.fish)u.fish.g.rotation.y=now*.8;if(u.spout){u.spout.scale.y=7+Math.sin(now*6)*2;u.spout.position.y=42+Math.sin(now*6)}})}
 function buildLobby(){clearGroup(lStatic);clearGroup(lDyn);const I=LY.isl;
   water=mesh(new THREE.PlaneGeometry(9000,9000,1,1),mat("#1b8fb8",{roughness:.25,metalness:.15}));water.rotation.x=-Math.PI/2;water.position.y=-6;water.receiveShadow=true;lStatic.add(water);
   lStatic.add(slab(I.x-W/2-14,I.y-H/2-14,I.w+28,I.h+28,50,4,"#bfe9f0",-3.5,{transparent:true,opacity:.7}));
@@ -509,7 +539,7 @@ function buildLobby(){clearGroup(lStatic);clearGroup(lDyn);const I=LY.isl;
   walker=makeWalker();lDyn.add(walker.g);pets=[];petKey="";walkerSpear=new Slot(walker.g);crabM=makeCrab();lDyn.add(crabM.g);
   pedSlots=[];for(let f=0;f<3;f++)LY.peds.forEach(()=>{const g=new THREE.Group();lDyn.add(g);pedSlots.push(new Slot(g))});
   rivalSlots=LY.rpeds.map(()=>{const g=new THREE.Group();lDyn.add(g);return new Slot(g)});
-  const cg=new THREE.Group();lDyn.add(cg);carrySlotL=new Slot(cg);
+  const cg=new THREE.Group();lDyn.add(cg);carrySlotL=new Slot(cg);const clg=new THREE.Group();lDyn.add(clg);crabLootSlot=new Slot(clg);decoG=new THREE.Group();lDyn.add(decoG);buildDecor();
   sun.position.set(-W*.3,900,H*.5);sun.target.position.set(0,0,0);const sc=sun.shadow.camera;const m=Math.max(W,H)*.75;sc.left=-m;sc.right=m;sc.top=m;sc.bottom=-m;sc.near=100;sc.far=2500;sc.updateProjectionMatrix();
   const rg=new THREE.BufferGeometry();rainPos=new Float32Array(RAIN_N*6);for(let i=0;i<RAIN_N;i++){const x=rand(-W*.7,W*.7),y=rand(0,600),z=rand(-H*.7,H*.7);rainPos.set([x,y,z,x+3,y+24,z+2],i*6)}
   rg.setAttribute("position",new THREE.BufferAttribute(rainPos,3));rain=new THREE.LineSegments(rg,new THREE.LineBasicMaterial({color:"#d6ecff",transparent:true,opacity:.55}));rain.visible=false;lStatic.add(rain);
@@ -637,8 +667,10 @@ addEventListener("resize",resize);
 /* ================= flow ================= */
 function setView(v){view=v;(v==="dive"?dScene:lScene).add(partG)}
 function enterLobby(){G.mode="lobby";setView("lobby");chrome(true);Object.assign(P,{x:LY.spawn.x,y:LY.spawn.y,vx:0,vy:0,a:-Math.PI/2,dash:0,cd:0,inv:0,carry:null,pad:"spawn"});
-  crab.x=LY.rival.x+LY.rival.w/2;crab.y=LY.rival.y+LY.rival.h/2;crab.state="patrol";crab.tx=crab.x;crab.ty=crab.y;parts=[];
-  $("overlay").hidden=true;document.body.classList.remove("menuOpen");$("hudLobby").hidden=false;$("hudDive").hidden=true;updLobbyHud();persist()}
+  if(crab.loot){SV.base.push(crab.loot);SV.base.sort((a,b)=>itemScore(b)-itemScore(a));crab.loot=null;SV.crabLoot=null}
+  crab.x=LY.rival.x+LY.rival.w/2;crab.y=LY.rival.y+LY.rival.h/2;crab.state="patrol";crab.tx=crab.x;crab.ty=crab.y;parts=[];if(SV.raidAt&&SV.raidAt<Date.now()+60000)SV.raidAt=Date.now()+60000;
+  $("overlay").hidden=true;document.body.classList.remove("menuOpen");$("hudLobby").hidden=false;$("hudDive").hidden=true;updLobbyHud();persist();
+  if(!dailyState().claimed&&!G.dailyShown){G.dailyShown=true;setTimeout(()=>{if(G.mode==="lobby")dailyMenu()},700)}}
 function show(html,btns){$("card").innerHTML=html+(btns||[]).map((b,i)=>`<button class="${b.cls||"go"}" data-b="${i}" type="button">${b.label}</button>`).join("");
   $("overlay").hidden=false;document.body.classList.add("menuOpen");(btns||[]).forEach((b,i)=>{$("card").querySelector(`[data-b="${i}"]`).onclick=()=>{audio();b.fn()}});
   $("overlay").scrollTop=0;const f=$("card").querySelector(".go");if(f)setTimeout(()=>f.focus({preventScroll:true}),50)}
@@ -656,19 +688,41 @@ function titleScreen(){G.mode="title";setView("lobby");chrome(false);$("hudLobby
   <div class="keys">Move: <kbd>mouse</kbd> / <kbd>WASD</kbd> / drag &nbsp; Dash: <kbd>Space</kbd> or <kbd>click</kbd> &nbsp; Admin: double-tap your base</div>
   ${offline>0?`<p class="good">While you were away your base earned ${fmt(offline)} coins.</p>`:""}`,
   [{label:SV.seen?"Back to the island":"Start",fn:()=>{SV.seen=true;enterLobby()}}])}
-function shopMenu(){G.mode="menu";
+function shopMenu(tab){if(tab==="decor")return decorMenu();G.mode="menu";
   const rows=Object.entries(UPS).map(([k,u])=>{const l=SV.up[k],maxed=l>=u.max,c=maxed?0:u.cost(l);
     return `<div class="row"><span><span class="t">${u.name}</span> <span class="pips">${"●".repeat(l)}${"○".repeat(u.max-l)}</span><br><span class="d">${u.desc}</span></span>
     <button class="buy" data-up="${k}" type="button" ${maxed||SV.coins<c?"disabled":""}>${maxed?"Max":fmt(c)}</button></div>`}).join("");
-  show(`<div class="eyebrow">Shop</div><h2>Gear Shack</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins.</p><div class="list">${rows}</div>`,
+  show(`<div class="eyebrow">Shop</div><h2>Gear Shack</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins.</p>${shopTabs("gear")}<div class="list">${rows}</div>`,
    [{label:"Done",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
-  $("card").querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{const k=b.dataset.up,c=UPS[k].cost(SV.up[k]);if(SV.coins>=c&&SV.up[k]<UPS[k].max){SV.coins-=c;SV.up[k]++;sfx.buy();if(k==="floors"){fitLobbyCam();toast(`Floor ${floors()} built!`,"#7fe0a8")}persist();updLobbyHud();shopMenu()}})}
+  $("card").querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{const k=b.dataset.up,c=UPS[k].cost(SV.up[k]);if(SV.coins>=c&&SV.up[k]<UPS[k].max){SV.coins-=c;SV.up[k]++;sfx.buy();if(k==="floors"){fitLobbyCam();toast(`Floor ${floors()} built!`,"#7fe0a8")}persist();updLobbyHud();shopMenu()}});bindShopTabs()}
+const shopTabs=t=>`<div class="stats" style="grid-template-columns:1fr 1fr"><button class="buy ${t==="gear"?"":"ghost"}" data-stab="gear" type="button" aria-pressed="${t==="gear"}">Gear</button><button class="buy ${t==="decor"?"":"ghost"}" data-stab="decor" type="button" aria-pressed="${t==="decor"}">Decorations</button></div>`;
+function bindShopTabs(){$("card").querySelectorAll("[data-stab]").forEach(b=>b.onclick=()=>shopMenu(b.dataset.stab))}
+function decorMenu(){G.mode="menu";const rows=DECOR.map(d=>{const own=SV.decor[d.k];
+    return `<div class="row ${own?"":""}"><span><span class="t">${d.name}</span><br><span class="d">+${Math.round(d.bonus*100)}% income from your whole base${own?" · placed on the island":""}</span></span>
+    <button class="buy" data-deco="${d.k}" type="button" ${own||SV.coins<d.cost?"disabled":""}>${own?"Owned":fmt(d.cost)}</button></div>`}).join("");
+  show(`<div class="eyebrow">Shop</div><h2>Decorations</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins. Income bonus: <b class="good">+${Math.round((decoMult()-1)*100)}%</b></p>${shopTabs("decor")}<div class="list">${rows}</div>`,[{label:"Done",fn:closeMenu}]);
+  bindShopTabs();$("card").querySelectorAll("[data-deco]").forEach(b=>b.onclick=()=>{const d=DECOR.find(x=>x.k===b.dataset.deco);if(!SV.decor[d.k]&&SV.coins>=d.cost){SV.coins-=d.cost;SV.decor[d.k]=true;sfx.buy();buildDecor();toast(`${d.name} placed! +${Math.round(d.bonus*100)}% income`,"#7fe0a8");persist();updLobbyHud();decorMenu()}})}
+const fuseCost=sp=>Math.round(EGGS[SPECIES[sp].t].rate*90);
+function fuse(sp){const g=SV.base.filter(f=>f.fish&&spIdx(f)===sp).sort((a,b)=>itemScore(a)-itemScore(b)).slice(0,3),c=fuseCost(sp);if(g.length<3||SV.coins<c)return false;
+  const S=SPECIES[sp],best=g.reduce((a,b)=>itemScore(b)>itemScore(a)?b:a);let lvl=Math.min(MAXLV,Math.max(...g.map(lv))+1),nsp=sp;
+  let mut=(g.filter(f=>f.mut).sort((a,b)=>(MUT[b.mut].money+MUT[b.mut].power)-(MUT[a.mut].money+MUT[a.mut].power))[0]||{}).mut||null,fish=best.fish;
+  if(S.r<2)nsp=sp+1;else{lvl=Math.min(MAXLV,lvl+2);if(!mut)mut=fish==="earn"?"golden":"electric"}
+  if(mut)fish=MUT[mut].kind==="money"?"earn":"fight";
+  SV.coins-=c;SV.base=SV.base.filter(f=>!g.includes(f));SV.pets=SV.pets.filter(id=>!g.some(f=>f.id===id));
+  const it={id:uid(),t:S.t,sp:nsp,at:0,fish,mut,lvl};SV.base.push(it);SV.base.sort((a,b)=>itemScore(b)-itemScore(a));
+  sfx.clang();setTimeout(sfx.hatch,200);toast(`Fused! ${RARITY[SPECIES[nsp].r].name} ${mutName(it)}${SPECIES[nsp].name} Lv${lvl}`,RARITY[SPECIES[nsp].r].col);persist();updLobbyHud();return true}
 function forgeMenu(tab){G.mode="menu";let body="";
   if(tab==="tools"){body=Object.entries(TOOLS).map(([k,T])=>{const cur=SV.tools[k],nx=T.tiers[cur],have=cur?T.tiers[cur-1].n:"None yet";
       const locked=nx&&SV.best<nx.req;
       const fx=nx?(k==="spear"?`${nx.dmg} damage per stab`:k==="net"?`+${nx.reach} grab reach`:`lights ${420+(cur+1)*170} far`):"";
       return `<div class="row"><span><span class="t">${T.name}</span> <span class="pips">${"●".repeat(cur)}${"○".repeat(T.tiers.length-cur)}</span><br><span class="d">${T.what}</span><br><span class="d">Have: <b style="color:var(--foam)">${have}</b>${nx?` · Next: ${nx.n} (${fx})`:""}</span></span>
       <button class="buy" data-tool="${k}" type="button" ${!nx||locked||SV.coins<nx.cost?"disabled":""}>${!nx?"Max":locked?`Reach stage ${nx.req+1}`:fmt(nx.cost)}</button></div>`}).join("")}
+  else if(tab==="fusion"){const groups={};SV.base.forEach(f=>{if(f.fish){const k=spIdx(f);(groups[k]=groups[k]||[]).push(f)}});
+    const keys=Object.keys(groups).map(Number).sort((a,b)=>groups[b].length-groups[a].length||b-a);
+    body=`<div class="row"><span class="d">Put 3 fish of the same species in and get 1 stronger fish back. Common becomes Uncommon, Uncommon becomes Rare. Rare fuses into a higher-level Rare with a guaranteed mutation. It keeps the best mutation and level of the three, plus one level.</span><span></span></div>`+
+      (keys.length?keys.map(k=>{const g=groups[k],S=SPECIES[k],ok=g.length>=3,c=fuseCost(k),to=S.r<2?SPECIES[k+1]:S;
+        return `<div class="row ${ok?"":"dim"}"><span><span class="t" style="color:${S.col}">${S.name}</span> <span class="d">× ${g.length}</span><br><span class="d">${ok?`3 → 1 <b style="color:${RARITY[to.r].col}">${S.r<2?RARITY[to.r].name+" "+to.name:"stronger Rare "+S.name}</b>`:`Need ${3-g.length} more`}</span></span>
+        <button class="buy" data-fuse="${k}" type="button" ${!ok||SV.coins<c?"disabled":""}>${ok?`Fuse · ${fmt(c)}`:"Need 3"}</button></div>`}).join(""):`<div class="row"><span class="d">No fish yet. Hatch some eggs first.</span><span></span></div>`)}
   else{const list=SV.base.map((it,i)=>({it,i}));
     body=list.length?list.map(({it,i})=>{if(!it.fish)return `<div class="row dim"><span><span class="t" style="color:${EGGS[it.t].col}">${EGGS[it.t].name}</span><br><span class="d">Still an egg. Hatches in ${mmss((it.at-Date.now())/1000)}</span></span><span></span></div>`;
       const max=lv(it)>=MAXLV,c=gearCost(it),fight=it.fish==="fight";
@@ -677,8 +731,10 @@ function forgeMenu(tab){G.mode="menu";let body="";
       <button class="buy" data-fish="${i}" type="button" ${max||SV.coins<c?"disabled":""}>${max?"Max":fmt(c)}</button></div>`}).join(""):`<div class="row"><span class="d">No fish yet. Bring eggs home and let them hatch.</span><span></span></div>`}
   show(`<div class="eyebrow">Forge</div><h2>Old Barnacle's Forge</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins.</p>
    <div class="stats" style="grid-template-columns:1fr 1fr"><button class="buy ${tab==="tools"?"":"ghost"}" data-tab="tools" type="button" aria-pressed="${tab==="tools"}">Your tools</button><button class="buy ${tab==="fish"?"":"ghost"}" data-tab="fish" type="button" aria-pressed="${tab==="fish"}">Fish gear</button></div>
+   <div class="stats" style="grid-template-columns:1fr;margin-top:-6px"><button class="buy ${tab==="fusion"?"":"ghost"}" data-tab="fusion" type="button" aria-pressed="${tab==="fusion"}">Fish fusion</button></div>
    <div class="list">${body}</div>`,[{label:"Done",fn:closeMenu}]);
   $("card").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>forgeMenu(b.dataset.tab));
+  $("card").querySelectorAll("[data-fuse]").forEach(b=>b.onclick=()=>{const r=fuse(+b.dataset.fuse);if(r)forgeMenu("fusion")});
   $("card").querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{const k=b.dataset.tool,nx=TOOLS[k].tiers[SV.tools[k]];if(nx&&SV.best>=nx.req&&SV.coins>=nx.cost){SV.coins-=nx.cost;SV.tools[k]++;sfx.clang();toast(`Forged: ${nx.n}`,"#ffb07a");persist();updLobbyHud();forgeMenu("tools")}});
   $("card").querySelectorAll("[data-fish]").forEach(b=>b.onclick=()=>{const it=SV.base[+b.dataset.fish],c=gearCost(it);if(it&&lv(it)<MAXLV&&SV.coins>=c){SV.coins-=c;it.lvl=lv(it)+1;sfx.clang();quest("upgrade");persist();updLobbyHud();forgeMenu("fish")}})}
 /* ---- admin code lock (stored apart from the save, so "Reset all progress" keeps it) ---- */
@@ -729,6 +785,8 @@ function adminMenu(){G.mode="menu";
    ${row("Weather","Change the island weather for the next 2.5 minutes.",Object.entries(WEATHER).map(([k,w])=>`<button class="buy" data-w="${k}" type="button" style="background:${w.col};min-width:0">${w.name}</button>`).join(""))}
    ${row("Mutants","Add a Lv1 Blue Barracuda with a mutation.",Object.entries(MUT).map(([k,m])=>`<button class="buy" data-m="${k}" type="button" style="background:${m.col};min-width:0">${m.name}</button>`).join(""))}
    ${row("Code lock",ADM.hash?"The panel asks for your code. Lock it again or change the code.":"No code set. Anyone who double-taps your base can open this.",ADM.hash?btn("lock","Lock now")+btn("chg","Change code")+btn("rm","Remove"):btn("chg","Set a code"))}
+   ${row("Snapjaw raids",SV.raids===false?"Raids are off.":"Snapjaw sneaks in every 3 to 5 minutes to steal your weakest fish or egg.",btn("raid","Raid now")+btn("raidtog",SV.raids===false?"Turn on":"Turn off"))}
+   ${row("Daily reward","Make today's daily reward claimable again.",btn("daily","Reset daily"))}
    ${row("God mode","Mother and Snapjaw can't hurt you. Lasts until you reload.",btn("god",G.god?"Turn off":"Turn on"))}
   </div>`,[{label:"Close",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
   const act={c1:()=>SV.coins+=1e4,c2:()=>SV.coins+=1e6,
@@ -739,7 +797,7 @@ function adminMenu(){G.mode="menu";
     max:()=>{for(const k in UPS)SV.up[k]=UPS[k].max;for(const k in TOOLS)SV.tools[k]=TOOLS[k].tiers.length;SV.base.forEach(it=>it.lvl=MAXLV)},
     stages:()=>{SV.best=LAST;SV.unlocked=LAST},
     restock:()=>{SV.restock=[0,0,0];SV.rival=[null,null,null];restockRival()},
-    god:()=>{G.god=!G.god},lab:()=>{}};
+    god:()=>{G.god=!G.god},raid:()=>{SV.raids=true;SV.raidAt=Date.now()-1;crab.state="patrol";toast("Raid starting. Close this panel!","#ff3b5c")},raidtog:()=>{SV.raids=SV.raids===false?true:false;SV.raidAt=0},daily:()=>{SV.daily.last="";G.dailyShown=false},lab:()=>{}};
   $("card").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="lab")return eggLab();
     if(a==="lock"){G.adminOk=false;toast("Admin panel locked","#ffd166");return closeMenu()}if(a==="chg")return setCodeMenu();
     if(a==="rm"){ADM.hash="";saveAdm();toast("Code removed","#ffd166");return adminMenu()}act[b.dataset.a]();SV.base.sort((a,b)=>itemScore(b)-itemScore(a));sfx.buy();persist();updLobbyHud();adminMenu()});
@@ -768,6 +826,22 @@ function fishSvg(sp,mut,known){const S=SPECIES[sp],sh=S.shape,c=!known?"#ffffff1
 let dexNew=0;
 function dexScan(){for(const it of SV.base)if(it.fish){const k=`s${spIdx(it)}:${it.mut||"none"}`;if(!SV.dex[k]){SV.dex[k]=1;dexNew++;const v=Math.round(EGGS[it.t].rate*100*(it.mut?3:1)*RARITY[spOf(it).r].mult);SV.coins+=v;
   setTimeout(()=>toast(`New Fishdex entry: ${mutName(it)}${spName(it)}! +${fmt(v)}`,it.mut?MUT[it.mut].col:EGGS[it.t].col),900);persist()}}}
+const DAILY=[{k:"coins",m:1,l:"Coins"},{k:"egg",l:"Egg"},{k:"coins",m:2,l:"2x coins"},{k:"egg",w:"rain",l:"Rain egg"},{k:"coins",m:3,l:"3x coins"},{k:"egg",w:"storm",l:"Storm egg"},{k:"rare",l:"RARE egg"}];
+function dailyState(){const today=new Date().toDateString(),d=SV.daily;if(d.last===today)return{claimed:true,day:d.day,today};
+  const y=new Date(Date.now()-864e5).toDateString();return{claimed:false,day:d.last===y?(d.day+1)%7:0,today}}
+const dailyCoins=m=>Math.round(Math.max(500,rate()*300)*m/10)*10;
+const dailyTier=()=>Math.min(SV.best,EGGS.length-1);
+function dailyMenu(){G.mode="menu";const st=dailyState();
+  const cells=DAILY.map((r,i)=>{const done=st.claimed?i<=st.day:i<st.day,cur=!st.claimed&&i===st.day;const t=dailyTier();
+    const icon=r.k==="coins"?`<svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="9" fill="#ffd166" stroke="#b8892a" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="800" fill="#7a5200">$</text></svg>`
+      :`<svg viewBox="0 0 24 30" width="26" height="32"><ellipse cx="12" cy="16" rx="9" ry="12" fill="${r.k==="rare"?SPECIES[t*3+2].col:EGGS[t].col}"/>${r.w?`<ellipse cx="12" cy="16" rx="12" ry="3.5" fill="none" stroke="${WEATHER[r.w].col}" stroke-width="1.6"/>`:""}${r.k==="rare"?`<path d="M12 2l2 4 4 .5-3 3 .8 4-3.8-2-3.8 2 .8-4-3-3 4-.5z" fill="#ffd166"/>`:""}</svg>`;
+    return `<div class="stat" style="${cur?"outline:2px solid var(--gold);background:#ffd16622;":""}${done?"opacity:.45;":""}gap:4px;align-items:center"><span class="lbl">Day ${i+1}</span>${icon}<span style="font-size:11px;font-weight:700">${r.k==="coins"?fmt(dailyCoins(r.m)):r.l}</span>${done?`<span class="good" style="font-size:10px">claimed</span>`:""}</div>`}).join("");
+  show(`<div class="eyebrow">Daily rewards</div><h2>${st.claimed?"See you tomorrow":`Day ${st.day+1} reward`}</h2><p>Come back every day to keep your streak. Miss a day and it starts over. Day 7 is a Rare-species egg.</p>
+   <div class="stats" style="grid-template-columns:repeat(4,1fr)">${cells}</div>`,st.claimed?[{label:"Close",fn:closeMenu}]:[{label:"Claim",fn:()=>claimDaily(st)},{label:"Later",cls:"link",fn:closeMenu}])}
+function claimDaily(st){const r=DAILY[st.day],t=dailyTier();SV.daily={day:st.day,last:st.today};
+  if(r.k==="coins"){const v=dailyCoins(r.m);SV.coins+=v;toast(`+${fmt(v)} coins`,"#ffd166");sfx.coin()}
+  else if(r.k==="egg")addEgg(t,false,r.w||null);else addEgg(t,false,"rainbow",null,t*3+2);
+  persist();updLobbyHud();closeMenu()}
 function bookMenu(){G.mode="menu";dexNew=0;const n=Object.keys(SV.dex).length;
   let g=`<span></span>${MKEYS.map(m=>`<span class="h">${m==="none"?"Normal":MUT[m].name}</span>`).join("")}`;
   SPECIES.forEach((f,i)=>{const seen=MKEYS.some(m=>SV.dex[`s${i}:${m}`]);g+=`<span class="rn" style="color:${seen?f.col:"var(--muted)"}">${seen?f.name:"???"}<br><span style="color:${RARITY[f.r].col};font-weight:600;font-size:9px;letter-spacing:.5px">${RARITY[f.r].name.toUpperCase()} · ${EGGS[f.t].name.replace(" Egg","")}</span></span>`;
@@ -831,7 +905,7 @@ function updChrome(){const on=G.mode==="lobby"||G.mode==="menu"&&view==="lobby";
     if(fp._k!==k){fp._k=k;fp.innerHTML=`<span class="lbl" style="align-self:center;padding:0 4px">Floor</span>`+Array.from({length:nF},(_,f)=>`<button type="button" data-fl="${f}" aria-pressed="${(G.floor||0)===f}">${f+1}F</button>`).join("");
       fp.querySelectorAll("[data-fl]").forEach(b=>b.onclick=()=>{G.floor=+b.dataset.fl;sfx.buy();updChrome()})}}
   const mini=$("mini");mini.style.top=top+"px";mini.hidden=!(on&&SET.minimap&&LY&&LY.land&&!$("bar").hidden);
-  $("dexBadge").hidden=!dexNew;$("dexBadge").textContent=dexNew;}
+  $("dexBadge").hidden=!dexNew;$("dexBadge").textContent=dexNew;$("dayBadge").hidden=dailyState().claimed;}
 $("questPill").onclick=()=>{audio();questMenu()};
 const EYE_ON='<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
       EYE_OFF='<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
@@ -840,8 +914,8 @@ function toggleUI(force){const hide=force!=null?force:!document.body.classList.c
   if(view==="lobby"&&LY)fitLobbyCam();if(!hide)updChrome()}
 $("uiToggle").onclick=()=>{audio();toggleUI()};
 addEventListener("keydown",e=>{if(e.code==="KeyH"&&!/INPUT|TEXTAREA/.test((e.target&&e.target.tagName)||"")&&!e.repeat)toggleUI()});
-document.querySelectorAll("[data-bar]").forEach(b=>b.onclick=()=>{audio();if(G.mode!=="lobby")return;if(P.carry!=null&&b.dataset.bar!=="book"&&b.dataset.bar!=="quests"&&b.dataset.bar!=="settings"){toast("Bring the egg to your base first","#ffd166");return}
-  P.vx=P.vy=0;pointer.active=false;({shop:shopMenu,forge:()=>forgeMenu("tools"),dive:dockMenu,book:bookMenu,quests:questMenu,settings:settingsMenu})[b.dataset.bar]()});
+document.querySelectorAll("[data-bar]").forEach(b=>b.onclick=()=>{audio();if(G.mode!=="lobby")return;if(P.carry!=null&&!["book","quests","settings","daily"].includes(b.dataset.bar)){toast("Bring the egg to your base first","#ffd166");return}
+  P.vx=P.vy=0;pointer.active=false;({shop:()=>shopMenu(),daily:dailyMenu,forge:()=>forgeMenu("tools"),dive:dockMenu,book:bookMenu,quests:questMenu,settings:settingsMenu})[b.dataset.bar]()});
 const miniC=$("mini"),mctx=miniC.getContext("2d");let miniT=0;
 function drawMini(dt){if(miniC.hidden||!LY)return;miniT-=dt;if(miniT>0)return;miniT=.1;const I=LY.isl,land=LY.land;
   const cwm=land?132:84,chm=Math.round(cwm*I.h/I.w),dpr=Math.min(2,window.devicePixelRatio||1);
@@ -1007,9 +1081,24 @@ function updateLobby(dt){const I=LY.isl;const carrying=P.carry!=null;
   if(pad==="collect"&&SV.vault>=1){const v=Math.floor(SV.vault);SV.coins+=v;SV.vault-=v;sfx.coin();quest("collect",v);spark(LY.collect.x,LY.collect.y,"#ffd166");toast(`+${fmt(v)} coins`,"#ffd166");persist()}
   if(!carrying)LY.rpeds.forEach((p,i)=>{if(P.carry==null&&SV.rival[i]!=null&&near(P,p,26+netReach())){P.carry=SV.rival[i];SV.rival[i]=null;SV.restock[i]=Date.now()+RESTOCK;crab.state="chase";sfx.snap();toast(`Got a ${EGGS[P.carry].name}! Run to your base`,"#ff3b5c");persist()}});
   if(P.carry!=null&&inRect(P,LY.base)){const t=P.carry;P.carry=null;crab.state="home";addEgg(t);quest("steal")}
+  if(SV.raids!==false&&crab.state==="patrol"&&P.carry==null&&SV.base.length){if(!SV.raidAt)SV.raidAt=Date.now()+rand(150,240)*1000;
+    if(Date.now()>=SV.raidAt){const idx=SV.base.length-1,k=idx%slots();crab.state="raid";crab.target=SV.base[idx].id;crab.tx=LY.peds[k].x;crab.ty=LY.peds[k].y;sfx.warn();toast("Snapjaw is sneaking into your base!","#ff3b5c")}}
   crab.ph+=dt*10;const rv=LY.rival;crab.stun=Math.max(0,(crab.stun||0)-dt);
   if(SV.tools.spear&&P.dash>0&&crab.stun<=0&&near(P,crab,40)){crab.stun=1.5+.4*SV.tools.spear;sfx.clang();spark(crab.x,crab.y,"#ffd166");shake=.3;toast("Snapjaw is stunned!","#ffd166")}
+  if((crab.state==="raid"||crab.state==="flee")&&near(P,crab,34)){
+    if(crab.loot){SV.base.push(crab.loot);SV.base.sort((a,b)=>itemScore(b)-itemScore(a));toast(`Got your ${crab.loot.fish?spName(crab.loot):EGGS[crab.loot.t].name} back!`,"#7fe0a8");crab.loot=null;SV.crabLoot=null;quest("steal")}
+    else toast("You chased Snapjaw off!","#7fe0a8");
+    sfx.snap();spark(crab.x,crab.y,"#7fe0a8");crab.state="home";crab.stun=Math.max(crab.stun,.6);SV.raidAt=Date.now()+rand(180,300)*1000;persist();updLobbyHud()}
   if(crab.stun>0){crab.ph+=dt*20;stepParts(dt);return}
+  if(crab.state==="raid"||crab.state==="flee"){const tgt=crab.state==="raid"?{x:crab.tx,y:crab.ty}:{x:rv.x+rv.w/2,y:rv.y+rv.h/2},sp=crab.state==="raid"?85:120;
+    const dx=tgt.x-crab.x,dy=tgt.y-crab.y,d=Math.hypot(dx,dy)||1;crab.x+=dx/d*Math.min(d,sp*dt);crab.y+=dy/d*Math.min(d,sp*dt);crab.face=Math.atan2(dy,dx);
+    if(crab.state==="raid"&&d<12){const i=SV.base.findIndex(f=>f.id===crab.target);
+      if(i<0){crab.state="home"}else{crab.loot=SV.base.splice(i,1)[0];SV.crabLoot=crab.loot;crab.state="flee";sfx.snap();shake=.3;
+        toast(`Snapjaw stole your ${crab.loot.fish?spName(crab.loot):EGGS[crab.loot.t].name}! Catch him!`,"#ff3b5c");persist();updLobbyHud()}}
+    if(crab.state==="flee"&&d<10){const L=crab.loot;crab.loot=null;SV.crabLoot=null;crab.state="patrol";SV.raidAt=Date.now()+rand(180,300)*1000;
+      if(L&&!L.fish){const e=SV.rival.findIndex(x=>x==null);if(e>=0){SV.rival[e]=L.t;toast(`Snapjaw put your ${EGGS[L.t].name} in his nest. Steal it back!`,"#ff8fa0")}else toast(`Snapjaw got away with your ${EGGS[L.t].name}`,"#ff3b5c")}
+      else if(L)toast(`Snapjaw got away with your ${spName(L)}`,"#ff3b5c");persist()}
+    stepParts(dt);return}
   if(crab.state==="chase"&&P.carry!=null){const cs=135+P.carry*17;const dx=P.x-crab.x,dy=P.y-crab.y,d=Math.hypot(dx,dy)||1;crab.x+=dx/d*cs*dt;crab.y+=dy/d*cs*dt;crab.face=Math.atan2(dy,dx);
     if(d<28&&P.inv<=0&&!G.god){const i=SV.rival.findIndex(x=>x==null);if(i>=0){SV.rival[i]=P.carry;SV.restock[i]=0}P.carry=null;crab.state="home";
       sfx.chomp();shake=.7;flash=.7;toast("Snapped! The egg went back","#ff3b5c");P.x=LY.spawn.x;P.y=LY.spawn.y;P.vx=P.vy=0;P.inv=1;persist()}}
@@ -1109,6 +1198,9 @@ function renderLobby(now){syncPets(now);weatherFx(now);
   lab("dock","DIVE",Lo(LY.dock.x,LY.dock.y,34),lCam,"big","#e8fbff");
   lab("vault",fmt(SV.vault)+" coins",Lo(LY.collect.x,LY.collect.y,30),lCam,"","#ffd166");
   if(crab.state==="chase")lab("crab!","!",Lo(crab.x,crab.y,84),lCam,"huge","#ff3b5c");
+  if(crab.state==="raid"||crab.state==="flee")lab("thief",crab.loot?"THIEF! Catch him":"THIEF!",Lo(crab.x,crab.y,crab.loot?110:84),lCam,"big","#ff3b5c");
+  const L=crab.loot,cl=crabLootSlot.set(L?L.id:"",()=>L.fish?fishFor(L,32).g:makeEgg(L.t,13));if(cl){cl.position.copy(Lo(crab.x,crab.y,72+Math.sin(now*6)*3));cl.rotation.y=now*2}
+  animDecor(now);
   const base=lCam.userData.base;if(base){lCam.position.copy(base);if(shake>0){lCam.position.x+=rand(-6,6)*shake;lCam.position.y+=rand(-6,6)*shake}}
   syncParts();R.render(lScene,lCam)}
 function renderDive(now){const s=S();
