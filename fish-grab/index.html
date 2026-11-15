@@ -1104,7 +1104,7 @@ function renderLobby(now){syncPets(now);weatherFx(now);
   lab("rival","SNAPJAW'S NEST",Lo(LY.rival.x+LY.rival.w/2,LY.rival.y,34),lCam,"big","#ff8fa0");
   lab("shop","SHOP",Lo(LY.shop.x,LY.shop.y,LY.shop.r*2.3),lCam,"big","#ffd166");
   lab("forge","FORGE",Lo(LY.forge.x,LY.forge.y,LY.forge.r*2.8),lCam,"big","#ffb07a");
-  if(G.mode==="lobby"){const ax=(LY.shop.x+LY.forge.x)/2,ay=Math.min(LY.shop.y,LY.forge.y)-(LY.land?6:20);lab("adminBtn","ADMIN",Lo(ax,ay,LY.shop.r*3.7),lCam,"adminbtn","#ff8fa0");
+  if(G.mode==="lobby"&&!document.body.classList.contains("uiHidden")){const ax=(LY.shop.x+LY.forge.x)/2,ay=Math.min(LY.shop.y,LY.forge.y)-(LY.land?6:20);lab("adminBtn","ADMIN",Lo(ax,ay,LY.shop.r*3.7),lCam,"adminbtn","#ff8fa0");
     const el=labs.adminBtn;if(!el._wired){el._wired=1;el.innerHTML='<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>ADMIN';el._t="ADMIN";el.setAttribute("role","button");el.tabIndex=0;el.setAttribute("aria-label","Open admin panel");
       const go=e=>{e.preventDefault();e.stopPropagation();if(G.mode!=="lobby")return;audio();P.vx=P.vy=0;pointer.active=false;openAdmin()};el.addEventListener("click",go);el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")go(e)})}}
   forgeFire.material.emissiveIntensity=1.1+Math.sin(now*13)*.25+Math.sin(now*7.3)*.2;forgeLight.intensity=1+Math.sin(now*11)*.3;
