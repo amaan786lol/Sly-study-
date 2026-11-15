@@ -570,6 +570,33 @@ function forgeMenu(tab){G.mode="menu";let body="";
   $("card").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>forgeMenu(b.dataset.tab));
   $("card").querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{const k=b.dataset.tool,nx=TOOLS[k].tiers[SV.tools[k]];if(nx&&SV.best>=nx.req&&SV.coins>=nx.cost){SV.coins-=nx.cost;SV.tools[k]++;sfx.clang();toast(`Forged: ${nx.n}`,"#ffb07a");persist();updLobbyHud();forgeMenu("tools")}});
   $("card").querySelectorAll("[data-fish]").forEach(b=>b.onclick=()=>{const it=SV.base[+b.dataset.fish],c=gearCost(it);if(it&&lv(it)<MAXLV&&SV.coins>=c){SV.coins-=c;it.lvl=lv(it)+1;sfx.clang();quest("upgrade");persist();updLobbyHud();forgeMenu("fish")}})}
+/* ---- admin code lock (stored apart from the save, so "Reset all progress" keeps it) ---- */
+const AKEY="mothersReefAdmin";let ADM={hash:"",fails:0,until:0};try{Object.assign(ADM,JSON.parse(localStorage.getItem(AKEY)||"{}"))}catch(e){}
+function saveAdm(){try{localStorage.setItem(AKEY,JSON.stringify(ADM))}catch(e){}}
+function hashCode(c){let h=2166136261;for(const ch of "mreef:"+c){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(36)}
+function openAdmin(){if(!ADM.hash){if(ADM.asked)return adminMenu();ADM.asked=1;saveAdm();return setCodeMenu(true)}if(G.adminOk)return adminMenu();codeMenu()}
+const codeField=(id,label)=>`<label class="d" for="${id}" style="align-self:flex-start">${label}</label><input id="${id}" type="password" inputmode="numeric" autocomplete="off" maxlength="8" pattern="[0-9]*"
+  style="width:100%;font:400 30px var(--f-display);letter-spacing:10px;text-align:center;padding:10px;border-radius:12px;border:1px solid #ffffff33;background:#ffffff10;color:var(--foam)">`;
+function codeMenu(msg){G.mode="menu";const wait=Math.ceil((ADM.until-Date.now())/1000);
+  show(`<div class="eyebrow bad">Locked</div><h2>Admin code</h2>
+   <form id="cf" style="display:flex;flex-direction:column;gap:10px;width:100%">${codeField("c1","Enter your code")}
+   <p id="cmsg" class="${msg?"bad":""}" style="min-height:1.5em">${wait>0?`Too many wrong tries. Wait ${wait}s.`:msg||"Unlocks until you reload the page."}</p></form>`,
+   [{label:"Unlock",fn:tryCode},{label:"Cancel",cls:"link",fn:closeMenu}]);
+  const f=$("cf"),i=$("c1");f.onsubmit=e=>{e.preventDefault();tryCode()};setTimeout(()=>i.focus(),60)}
+function tryCode(){const v=$("c1").value.trim();if(Date.now()<ADM.until)return codeMenu();
+  if(hashCode(v)===ADM.hash){ADM.fails=0;saveAdm();G.adminOk=true;sfx.buy();return adminMenu()}
+  ADM.fails++;if(ADM.fails>=5){ADM.until=Date.now()+30000;ADM.fails=0}saveAdm();sfx.snap();
+  const c=$("card");c.animate([{transform:"translateX(0)"},{transform:"translateX(-10px)"},{transform:"translateX(10px)"},{transform:"translateX(0)"}],{duration:260});codeMenu("Wrong code. Try again.")}
+function setCodeMenu(first,msg){G.mode="menu";
+  show(`<div class="eyebrow bad">Admin</div><h2>${first?"Lock your admin panel?":"Set a new code"}</h2>
+   <p>${first?"Pick a 4 to 8 digit code so nobody else can open the admin panel on this device.":"Pick a 4 to 8 digit code."}</p>
+   <form id="sf" style="display:flex;flex-direction:column;gap:10px;width:100%">${codeField("s1","New code")}${codeField("s2","Type it again")}
+   <p class="bad" style="min-height:1.5em">${msg||""}</p></form>`,
+   [{label:"Save code",fn:saveCode},{label:first?"Skip, no code":"Cancel",cls:"link",fn:adminMenu}]);
+  $("sf").onsubmit=e=>{e.preventDefault();saveCode()};$("sf").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();saveCode()}};setTimeout(()=>$("s1").focus(),60)}
+function saveCode(){const a=$("s1").value.trim(),b=$("s2").value.trim();
+  if(!/^[0-9]{4,8}$/.test(a))return setCodeMenu(false,"Use 4 to 8 digits.");if(a!==b)return setCodeMenu(false,"The two codes don't match.");
+  ADM.hash=hashCode(a);saveAdm();G.adminOk=true;sfx.buy();toast("Admin code saved","#7fe0a8");adminMenu()}
 function adminMenu(){G.mode="menu";
   const btn=(id,label)=>`<button class="buy" data-a="${id}" type="button">${label}</button>`;
   const row=(t,d,b)=>`<div class="row"><span><span class="t">${t}</span><br><span class="d">${d}</span></span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${b}</span></div>`;
@@ -585,6 +612,7 @@ function adminMenu(){G.mode="menu";
    ${row("Snapjaw","Refill all three of his pedestals now.",btn("restock","Restock"))}
    ${row("Weather","Change the island weather for the next 2.5 minutes.",Object.entries(WEATHER).map(([k,w])=>`<button class="buy" data-w="${k}" type="button" style="background:${w.col};min-width:0">${w.name}</button>`).join(""))}
    ${row("Mutants","Add a Lv1 Blue Barracuda with a mutation.",Object.entries(MUT).map(([k,m])=>`<button class="buy" data-m="${k}" type="button" style="background:${m.col};min-width:0">${m.name}</button>`).join(""))}
+   ${row("Code lock",ADM.hash?"The panel asks for your code. Lock it again or change the code.":"No code set. Anyone who double-taps your base can open this.",ADM.hash?btn("lock","Lock now")+btn("chg","Change code")+btn("rm","Remove"):btn("chg","Set a code"))}
    ${row("God mode","Mother and Snapjaw can't hurt you. Lasts until you reload.",btn("god",G.god?"Turn off":"Turn on"))}
   </div>`,[{label:"Close",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
   const act={c1:()=>SV.coins+=1e4,c2:()=>SV.coins+=1e6,
@@ -594,7 +622,9 @@ function adminMenu(){G.mode="menu";
     stages:()=>{SV.best=5;SV.unlocked=5},
     restock:()=>{SV.restock=[0,0,0];SV.rival=[null,null,null];restockRival()},
     god:()=>{G.god=!G.god},lab:()=>{}};
-  $("card").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{if(b.dataset.a==="lab")return eggLab();act[b.dataset.a]();SV.base.sort((a,b)=>itemScore(b)-itemScore(a));sfx.buy();persist();updLobbyHud();adminMenu()});
+  $("card").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==="lab")return eggLab();
+    if(a==="lock"){G.adminOk=false;toast("Admin panel locked","#ffd166");return closeMenu()}if(a==="chg")return setCodeMenu();
+    if(a==="rm"){ADM.hash="";saveAdm();toast("Code removed","#ffd166");return adminMenu()}act[b.dataset.a]();SV.base.sort((a,b)=>itemScore(b)-itemScore(a));sfx.buy();persist();updLobbyHud();adminMenu()});
   $("card").querySelectorAll("[data-egg]").forEach(b=>b.onclick=()=>{addEgg(+b.dataset.egg);adminMenu()});
   $("card").querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{G.wOver={type:b.dataset.w,until:Date.now()+WLEN};sfx.buy();updLobbyHud();adminMenu()});
   $("card").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{const m=b.dataset.m;SV.base.push({id:uid(),t:3,at:0,fish:MUT[m].kind==="money"?"earn":"fight",mut:m,lvl:1});
@@ -652,7 +682,7 @@ function settingsMenu(){G.mode="menu";const tg=(k,on,label)=>`<button class="buy
    <div class="row"><span><span class="t">Graphics</span><br><span class="d">Low turns off shadows and sharpness. Use it if the game feels slow.</span></span>${tg("quality",SET.quality==="high",SET.quality==="high"?"High":"Low")}</div>
    <div class="row"><span><span class="t">World labels</span><br><span class="d">Names and numbers floating over things.</span></span>${tg("labels",SET.labels,SET.labels?"Shown":"Hidden")}</div>
    <div class="row"><span><span class="t">Minimap</span><br><span class="d">Small island map in the corner (wide screens only).</span></span>${tg("minimap",SET.minimap,SET.minimap?"Shown":"Hidden")}</div>
-   <div class="row"><span><span class="t">Admin panel</span><br><span class="d">Double-tap an empty spot in your base.</span></span><span></span></div>
+   <div class="row"><span><span class="t">Admin panel</span><br><span class="d">Double-tap an empty spot in your base. Set a code inside it to lock it.</span></span><span></span></div>
   </div>`,[{label:"Done",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
   $("card").querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>{const k=b.dataset.set;if(k==="quality")SET.quality=SET.quality==="high"?"low":"high";else SET[k]=!SET[k];saveSet();syncMute();
     $("labels").hidden=!SET.labels;if(k==="quality"){resize();lScene.traverse(o=>{if(o.material)o.material.needsUpdate=true})}updChrome();settingsMenu()})}
@@ -871,7 +901,7 @@ cv.addEventListener("pointermove",e=>{toWorld(e);if(e.pointerType==="mouse")poin
 let lastTap=0;
 cv.addEventListener("pointerdown",e=>{audio();toWorld(e);pointer.active=true;
   if(G.mode==="lobby"&&view==="lobby"){const i=LY.peds.findIndex((p,i)=>i<slots()&&SV.base[i]&&near(pointer,p,26));if(i>=0){P.vx=P.vy=0;pointer.active=false;pedMenu(i);return}}
-  if(G.mode==="lobby"&&view==="lobby"&&inRect(pointer,LY.base)){const n=performance.now();if(n-lastTap<400){lastTap=0;P.vx=P.vy=0;pointer.active=false;adminMenu();return}lastTap=n}
+  if(G.mode==="lobby"&&view==="lobby"&&inRect(pointer,LY.base)){const n=performance.now();if(n-lastTap<400){lastTap=0;P.vx=P.vy=0;pointer.active=false;openAdmin();return}lastTap=n}
   if(e.pointerType==="mouse")doDash()});
 cv.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse")pointer.active=false});
 cv.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse")pointer.active=false});
