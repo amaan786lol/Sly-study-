@@ -40,9 +40,9 @@ canvas{display:block;width:100%;height:100%}
   font:400 16px var(--f-display);letter-spacing:.5px;display:none;touch-action:none}
 #dash.ready{border-color:var(--gold);color:var(--gold)}
 @media (pointer:coarse){#dash{display:block}}
-#overlay{position:absolute;inset:0;display:grid;place-items:center;overflow-y:auto;background:radial-gradient(ellipse at 50% 40%,#0b2f4a88,#04121fe6);
+#overlay{position:absolute;inset:0;display:flex;overflow-y:auto;background:radial-gradient(ellipse at 50% 40%,#0b2f4a88,#04121fe6);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px}
-.card{max-width:460px;width:100%;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+.card{margin:auto;max-width:460px;width:100%;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
 .eyebrow{color:var(--kelp);text-transform:uppercase;letter-spacing:3px;font-size:12px;font-weight:800}
 h1{font-family:var(--f-display);font-weight:400;font-size:clamp(42px,11vw,72px);line-height:.92;margin:0;text-wrap:balance;text-shadow:0 4px 0 #0b2f4a,0 8px 24px #000a}
 h2{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,8vw,44px);line-height:1;margin:0;text-wrap:balance}
@@ -453,7 +453,7 @@ function enterLobby(){G.mode="lobby";setView("lobby");Object.assign(P,{x:LY.spaw
   $("overlay").hidden=true;$("hudLobby").hidden=false;$("hudDive").hidden=true;updLobbyHud();persist()}
 function show(html,btns){$("card").innerHTML=html+(btns||[]).map((b,i)=>`<button class="${b.cls||"go"}" data-b="${i}" type="button">${b.label}</button>`).join("");
   $("overlay").hidden=false;(btns||[]).forEach((b,i)=>{$("card").querySelector(`[data-b="${i}"]`).onclick=()=>{audio();b.fn()}});
-  const f=$("card").querySelector(".go");if(f)setTimeout(()=>f.focus(),50)}
+  $("overlay").scrollTop=0;const f=$("card").querySelector(".go");if(f)setTimeout(()=>f.focus({preventScroll:true}),50)}
 function closeMenu(){$("overlay").hidden=true;G.mode="lobby"}
 function titleScreen(){G.mode="title";setView("lobby");$("hudLobby").hidden=true;$("hudDive").hidden=true;
   show(`<div class="eyebrow">Egg heist on a fish island</div><h1>Mother's Reef</h1>
@@ -465,7 +465,7 @@ function titleScreen(){G.mode="title";setView("lobby");$("hudLobby").hidden=true
    <div class="row"><span><span class="t">Forge</span><br><span class="d">The blacksmith makes spears, nets and lanterns for you, and gear that levels up your fish.</span></span><span class="tag" style="color:#ffb07a">craft</span></div>
    <div class="row"><span><span class="t">Snapjaw's Nest</span><br><span class="d">A crab guards three eggs on the island. Grab one and run it home.</span></span><span class="goldt tag">raid</span></div>
   </div>
-  <div class="keys">Move: <kbd>mouse</kbd> / <kbd>WASD</kbd> / drag &nbsp; Dash: <kbd>Space</kbd> or <kbd>click</kbd></div>
+  <div class="keys">Move: <kbd>mouse</kbd> / <kbd>WASD</kbd> / drag &nbsp; Dash: <kbd>Space</kbd> or <kbd>click</kbd> &nbsp; Admin: double-tap your base</div>
   ${offline>0?`<p class="good">While you were away your base earned ${fmt(offline)} coins.</p>`:""}`,
   [{label:SV.seen?"Back to the island":"Start",fn:()=>{SV.seen=true;enterLobby()}}])}
 function shopMenu(){G.mode="menu";
@@ -493,6 +493,29 @@ function forgeMenu(tab){G.mode="menu";let body="";
   $("card").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>forgeMenu(b.dataset.tab));
   $("card").querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{const k=b.dataset.tool,nx=TOOLS[k].tiers[SV.tools[k]];if(nx&&SV.best>=nx.req&&SV.coins>=nx.cost){SV.coins-=nx.cost;SV.tools[k]++;sfx.clang();toast(`Forged: ${nx.n}`,"#ffb07a");persist();updLobbyHud();forgeMenu("tools")}});
   $("card").querySelectorAll("[data-fish]").forEach(b=>b.onclick=()=>{const it=SV.base[+b.dataset.fish],c=gearCost(it);if(it&&lv(it)<MAXLV&&SV.coins>=c){SV.coins-=c;it.lvl=lv(it)+1;sfx.clang();persist();updLobbyHud();forgeMenu("fish")}})}
+function adminMenu(){G.mode="menu";
+  const btn=(id,label)=>`<button class="buy" data-a="${id}" type="button">${label}</button>`;
+  const row=(t,d,b)=>`<div class="row"><span><span class="t">${t}</span><br><span class="d">${d}</span></span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${b}</span></div>`;
+  show(`<div class="eyebrow bad">Admin panel</div><h2>Base Control</h2><p>Coins <b class="goldt">${fmt(SV.coins)}</b> · Base ${SV.base.length}/${slots()} · God mode <b class="${G.god?"good":"bad"}">${G.god?"on":"off"}</b></p>
+  <div class="list">
+   ${row("Coins","Add coins to your wallet.",btn("c1","+10k")+btn("c2","+1M"))}
+   ${row("Eggs","Put an egg of any tier in your base.",EGGS.map((e,i)=>`<button class="buy" data-egg="${i}" type="button" style="background:${e.col};min-width:40px">${i+1}</button>`).join(""))}
+   ${row("Fighter","Add a hatched Abyss Angler fighter at Lv10.",btn("fish","Add"))}
+   ${row("Hatch","Hatch every egg in your base right now.",btn("hatch","Hatch all"))}
+   ${row("Max out","Max every shop upgrade, every tool and every fish level.",btn("max","Max all"))}
+   ${row("Stages","Mark all six stages as reached.",btn("stages","Unlock"))}
+   ${row("Snapjaw","Refill all three of his pedestals now.",btn("restock","Restock"))}
+   ${row("God mode","Mother and Snapjaw can't hurt you. Lasts until you reload.",btn("god",G.god?"Turn off":"Turn on"))}
+  </div>`,[{label:"Close",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
+  const act={c1:()=>SV.coins+=1e4,c2:()=>SV.coins+=1e6,
+    fish:()=>{SV.base.push({t:5,at:0,fish:"fight",lvl:MAXLV});if(SV.base.length>slots())SV.base.sort((a,b)=>itemScore(b)-itemScore(a)).length=slots()},
+    hatch:()=>{SV.base.forEach(it=>{if(!it.fish)it.at=0});hatchCheck()},
+    max:()=>{for(const k in UPS)SV.up[k]=UPS[k].max;for(const k in TOOLS)SV.tools[k]=TOOLS[k].tiers.length;SV.base.forEach(it=>it.lvl=MAXLV)},
+    stages:()=>{SV.best=5;SV.unlocked=5},
+    restock:()=>{SV.restock=[0,0,0];SV.rival=[null,null,null];restockRival()},
+    god:()=>{G.god=!G.god}};
+  $("card").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{act[b.dataset.a]();SV.base.sort((a,b)=>itemScore(b)-itemScore(a));sfx.buy();persist();updLobbyHud();adminMenu()});
+  $("card").querySelectorAll("[data-egg]").forEach(b=>b.onclick=()=>{addEgg(+b.dataset.egg);adminMenu()})}
 function resetAsk(){show(`<div class="eyebrow bad">Reset</div><h2>Wipe your save?</h2><p>All coins, eggs, fish and gear will be gone.</p>`,
   [{label:"Keep my save",fn:shopMenu},{label:"Yes, wipe it",cls:"link",fn:()=>{SV=fresh();SV.seen=true;restockRival();persist();enterLobby()}}])}
 function dockMenu(){G.mode="menu";const sq=squad();
@@ -598,7 +621,7 @@ function updateMom(dt,s){mom.ph+=dt*(mom.state==="hunt"?7:4);mom.t-=dt;mom.stun=
     if(mom.state==="hunt"&&P.inv<=0&&hd<mom.r*.55+12)bitten()}}
 function stepParts(dt){for(const p of parts){p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.kind==="s"){p.vx*=.92;p.vy*=.92}if(p.kind==="b"&&view==="dive"&&p.y<SURF)p.t=p.life}
   parts=parts.filter(p=>p.t<p.life);shake=Math.max(0,shake-dt*2);flash=Math.max(0,flash-dt*2)}
-function bitten(){G.lives--;sfx.chomp();shake=1;flash=1;spark(P.x,P.y,"#ff3b5c");
+function bitten(){if(G.god){P.inv=1;return}G.lives--;sfx.chomp();shake=1;flash=1;spark(P.x,P.y,"#ff3b5c");
   if(G.egg==="carried"){G.egg="nest";toast("You dropped the egg!","#ff3b5c")}
   if(G.lives>0){P.inv=2.2;mom.state="leave";if(G.egg!=="carried")toast("The cage held! One bite used","#ffd166");updHud();return}
   G.mode="chomp";updHud();const lost=RUN.haul,eggs=RUN.eggs.length;setTimeout(()=>{G.mode="menu";
@@ -627,7 +650,7 @@ function updateLobby(dt){const I=LY.isl;const carrying=P.carry!=null;
   if(SV.tools.spear&&P.dash>0&&crab.stun<=0&&near(P,crab,40)){crab.stun=1.5+.4*SV.tools.spear;sfx.clang();spark(crab.x,crab.y,"#ffd166");shake=.3;toast("Snapjaw is stunned!","#ffd166")}
   if(crab.stun>0){crab.ph+=dt*20;stepParts(dt);return}
   if(crab.state==="chase"&&P.carry!=null){const cs=135+P.carry*17;const dx=P.x-crab.x,dy=P.y-crab.y,d=Math.hypot(dx,dy)||1;crab.x+=dx/d*cs*dt;crab.y+=dy/d*cs*dt;crab.face=Math.atan2(dy,dx);
-    if(d<28&&P.inv<=0){const i=SV.rival.findIndex(x=>x==null);if(i>=0){SV.rival[i]=P.carry;SV.restock[i]=0}P.carry=null;crab.state="home";
+    if(d<28&&P.inv<=0&&!G.god){const i=SV.rival.findIndex(x=>x==null);if(i>=0){SV.rival[i]=P.carry;SV.restock[i]=0}P.carry=null;crab.state="home";
       sfx.chomp();shake=.7;flash=.7;toast("Snapped! The egg went back","#ff3b5c");P.x=LY.spawn.x;P.y=LY.spawn.y;P.vx=P.vy=0;P.inv=1;persist()}}
   else{if(crab.state==="chase")crab.state="home";
     if(crab.state==="home"){crab.tx=rv.x+rv.w/2;crab.ty=rv.y+rv.h/2;if(near(crab,{x:crab.tx,y:crab.ty},10))crab.state="patrol"}
@@ -659,7 +682,10 @@ function toWorld(e){const r=cv.getBoundingClientRect();ndc.set((e.clientX-r.left
 addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="Space"&&(G.mode==="dive"||G.mode==="lobby")){e.preventDefault();doDash()}});
 addEventListener("keyup",e=>{keys[e.code]=false});
 cv.addEventListener("pointermove",e=>{toWorld(e);if(e.pointerType==="mouse")pointer.active=true});
-cv.addEventListener("pointerdown",e=>{audio();toWorld(e);pointer.active=true;if(e.pointerType==="mouse")doDash()});
+let lastTap=0;
+cv.addEventListener("pointerdown",e=>{audio();toWorld(e);pointer.active=true;
+  if(G.mode==="lobby"&&view==="lobby"&&inRect(pointer,LY.base)){const n=performance.now();if(n-lastTap<400){lastTap=0;P.vx=P.vy=0;pointer.active=false;adminMenu();return}lastTap=n}
+  if(e.pointerType==="mouse")doDash()});
 cv.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse")pointer.active=false});
 cv.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse")pointer.active=false});
 $("dash").addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();audio();doDash()});
