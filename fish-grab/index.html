@@ -504,13 +504,13 @@ const inRect=(p,r)=>p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h;
 const near=(p,c,r)=>Math.hypot(p.x-c.x,p.y-c.y)<r;
 function rivalTier(){const u=SV.unlocked;let t=Math.max(0,u-1+(Math.random()<.55?1:0));if(Math.random()<.1)t++;return Math.min(5,t)}
 function restockRival(){const now=Date.now();for(let i=0;i<3;i++){if(SV.rival[i]==null&&now>=SV.restock[i])SV.rival[i]=rivalTier()}}
-function addEgg(t,quiet){const it={id:uid(),t,at:Date.now()+HATCH[t]*1000,fish:null};let msg;
+function addEgg(t,quiet,w,fm){const it={id:uid(),t,at:Date.now()+HATCH[t]*1000*(w==="rain"?.5:1),fish:null};if(w)it.w=w;if(fm)it.fm=fm;let msg;
   if(SV.base.length<slots()){SV.base.push(it);msg=`${EGGS[t].name} added to your base. Hatches in ${mmss(HATCH[t])}`}
   else{let lo=0;SV.base.forEach((x,i)=>{if(itemScore(x)<itemScore(SV.base[lo]))lo=i});
     if(itemScore(it)>itemScore(SV.base[lo])){SV.base[lo]=it;msg=`${EGGS[t].name} took the spot of your weakest pedestal`}
     else{const v=EGGS[t].rate*60;SV.coins+=v;msg=`Base full. Sold ${EGGS[t].name} for ${fmt(v)}`}}
   SV.base.sort((a,b)=>itemScore(b)-itemScore(a));if(!quiet){toast(msg,EGGS[t].col);sfx.egg()}persist();updLobbyHud()}
-function hatchCheck(){const now=Date.now();let any=false;const w=weatherNow().type;for(const it of SV.base)if(!it.fish&&now>=it.at){it.fish=Math.random()<.5?"fight":"earn";it.mut=rollMut(it.fish,w);any=true;quest("hatch");
+function hatchCheck(){const now=Date.now();let any=false;const w=weatherNow().type;for(const it of SV.base)if(!it.fish&&now>=it.at){if(it.fm){it.fish=MUT[it.fm].kind==="money"?"earn":"fight";it.mut=it.fm;delete it.fm}else{it.fish=Math.random()<.5?"fight":"earn";it.mut=rollMut(it.fish,it.w||w)}any=true;quest("hatch");
     if(view==="lobby"&&G.mode!=="title"){sfx.hatch();if(it.mut)setTimeout(sfx.gold,250);
       toast(it.mut?`MUTATION! ${MUT[it.mut].name} ${FISH[it.t].name} (${MUT[it.mut].kind==="money"?`${MUT[it.mut].money}x coins`:`${MUT[it.mut].power}x power`})`:`Hatched: ${FISH[it.t].name}${it.fish==="fight"?" (fighter!)":" (earns 3x)"}`,it.mut?MUT[it.mut].col:EGGS[it.t].col)}}
   if(any){SV.base.sort((a,b)=>itemScore(b)-itemScore(a));persist();updLobbyHud()}}
@@ -576,6 +576,7 @@ function adminMenu(){G.mode="menu";
   show(`<div class="eyebrow bad">Admin panel</div><h2>Base Control</h2><p>Coins <b class="goldt">${fmt(SV.coins)}</b> · Base ${SV.base.length}/${slots()} · God mode <b class="${G.god?"good":"bad"}">${G.god?"on":"off"}</b></p>
   <div class="list">
    ${row("Coins","Add coins to your wallet.",btn("c1","+10k")+btn("c2","+1M"))}
+   ${row("Egg Lab","Spawn any egg, charge it with any weather, and hatch it instantly.",btn("lab","Open Egg Lab"))}
    ${row("Eggs","Put an egg of any tier in your base.",EGGS.map((e,i)=>`<button class="buy" data-egg="${i}" type="button" style="background:${e.col};min-width:40px">${i+1}</button>`).join(""))}
    ${row("Fighter","Add a hatched Abyss Angler fighter at Lv10.",btn("fish","Add"))}
    ${row("Hatch","Hatch every egg in your base right now.",btn("hatch","Hatch all"))}
@@ -592,8 +593,8 @@ function adminMenu(){G.mode="menu";
     max:()=>{for(const k in UPS)SV.up[k]=UPS[k].max;for(const k in TOOLS)SV.tools[k]=TOOLS[k].tiers.length;SV.base.forEach(it=>it.lvl=MAXLV)},
     stages:()=>{SV.best=5;SV.unlocked=5},
     restock:()=>{SV.restock=[0,0,0];SV.rival=[null,null,null];restockRival()},
-    god:()=>{G.god=!G.god}};
-  $("card").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{act[b.dataset.a]();SV.base.sort((a,b)=>itemScore(b)-itemScore(a));sfx.buy();persist();updLobbyHud();adminMenu()});
+    god:()=>{G.god=!G.god},lab:()=>{}};
+  $("card").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{if(b.dataset.a==="lab")return eggLab();act[b.dataset.a]();SV.base.sort((a,b)=>itemScore(b)-itemScore(a));sfx.buy();persist();updLobbyHud();adminMenu()});
   $("card").querySelectorAll("[data-egg]").forEach(b=>b.onclick=()=>{addEgg(+b.dataset.egg);adminMenu()});
   $("card").querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{G.wOver={type:b.dataset.w,until:Date.now()+WLEN};sfx.buy();updLobbyHud();adminMenu()});
   $("card").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{const m=b.dataset.m;SV.base.push({id:uid(),t:3,at:0,fish:MUT[m].kind==="money"?"earn":"fight",mut:m,lvl:1});
@@ -635,7 +636,7 @@ function pedMenu(i,sellArm){G.mode="menu";const it=SV.base[i];if(!it)return clos
   if(!it.fish){const left=(it.at-Date.now())/1000,v=EGGS[it.t].rate*30;
     show(`<div class="eyebrow">Pedestal ${i+1}</div>${(()=>{const e=EGGS[it.t];return `<svg class="big-fish" viewBox="0 0 40 50"><ellipse cx="20" cy="26" rx="15" ry="20" fill="${e.col}"/><circle cx="14" cy="20" r="3" fill="${e.spot}"/><circle cx="25" cy="30" r="2.5" fill="${e.spot}"/><circle cx="18" cy="36" r="2" fill="${e.spot}"/></svg>`})()}
      <h2>${EGGS[it.t].name}</h2><div class="stats"><div class="stat"><span class="lbl">Hatches in</span><b>${mmss(left)}</b></div><div class="stat"><span class="lbl">Earning</span><b class="goldt">${fmt(itemRate(it))}/s</b></div><div class="stat"><span class="lbl">Weather</span><b style="color:${WEATHER[weatherNow().type].col};font-size:15px">${WEATHER[weatherNow().type].name}</b></div></div>
-     <p>${WEATHER[weatherNow().type].desc}</p>`,[{label:"Close",fn:closeMenu},{label:sellArm?`Tap again to sell for ${fmt(v)}`:`Sell egg for ${fmt(v)}`,cls:"link",fn:()=>{if(!sellArm)return pedMenu(i,true);SV.base.splice(i,1);SV.coins+=v;sfx.coin();persist();updLobbyHud();closeMenu()}}]);return}
+     <p>${it.w?`<b style="color:${WEATHER[it.w].col}">Charged with ${WEATHER[it.w].name}.</b> It hatches as if it were ${WEATHER[it.w].name.toLowerCase()}, whatever the weather is.`:WEATHER[weatherNow().type].desc}</p>`,[{label:"Close",fn:closeMenu},{label:sellArm?`Tap again to sell for ${fmt(v)}`:`Sell egg for ${fmt(v)}`,cls:"link",fn:()=>{if(!sellArm)return pedMenu(i,true);SV.base.splice(i,1);SV.coins+=v;sfx.coin();persist();updLobbyHud();closeMenu()}}]);return}
   const fight=it.fish==="fight",c=gearCost(it),max=lv(it)>=MAXLV,pet=SV.pets.includes(it.id),v=Math.round(itemRate(it)*120);
   show(`<div class="eyebrow">Pedestal ${i+1} · ${fight?"fighter":"earner"}</div><div class="big-fish">${fishSvg(it.t,it.mut,true)}</div>
    <h2 style="color:${it.mut?MUT[it.mut].col:EGGS[it.t].col}">${mutName(it)}${FISH[it.t].name}</h2>
@@ -677,6 +678,27 @@ function drawMini(dt){if(miniC.hidden||!LY)return;miniT-=dt;if(miniT>0)return;mi
   LY.rpeds.forEach((p,i)=>{if(SV.rival[i]!=null)dot(p,2.4,EGGS[SV.rival[i]].col)});
   dot(crab,3.4,"#e2483d");pets.forEach(p=>dot(p,2,"#bfefff"));
   c.fillStyle="#fff";c.strokeStyle="#04121f";c.lineWidth=1.5;c.beginPath();const px=X(P.x),py=Y(P.y),a=P.a;c.moveTo(px+Math.cos(a)*6,py+Math.sin(a)*6);c.lineTo(px+Math.cos(a+2.4)*4,py+Math.sin(a+2.4)*4);c.lineTo(px+Math.cos(a-2.4)*4,py+Math.sin(a-2.4)*4);c.closePath();c.stroke();c.fill()}
+const LAB={t:0,w:"storm",n:1,now:true,m:"random"};
+function mutOdds(w){const f=w==="storm"?"Electric 32% · Inferno 8%":"Electric 8%",e=w==="rainbow"?"Golden 32% · Diamond 8%":"Golden 8%";return{f,e}}
+function eggLab(){G.mode="menu";const e=EGGS[LAB.t],W=WEATHER[LAB.w],od=mutOdds(LAB.w);
+  const pick=(attr,val,on,label,bg)=>`<button class="buy ${on?"":"ghost"}" data-${attr}="${val}" type="button" style="min-width:0;${on&&bg?`background:${bg};`:""}">${label}</button>`;
+  show(`<div class="eyebrow bad">Admin · Egg Lab</div>
+   <svg class="big-fish" viewBox="0 0 60 60" style="width:96px;filter:drop-shadow(0 0 10px ${W.col})"><ellipse cx="30" cy="31" rx="17" ry="22" fill="${e.col}"/><circle cx="23" cy="24" r="3.4" fill="${e.spot}"/><circle cx="36" cy="35" r="2.8" fill="${e.spot}"/><circle cx="27" cy="42" r="2.2" fill="${e.spot}"/><ellipse cx="30" cy="31" rx="27" ry="7" fill="none" stroke="${W.col}" stroke-width="2.4"/></svg>
+   <h2>${LAB.m!=="random"?MUT[LAB.m].name+" ":""}${W.name} ${e.name}</h2>
+   <p>Fighters: <b style="color:${MUT.electric.col}">${od.f}</b><br>Earners: <b style="color:${MUT.golden.col}">${od.e}</b>${LAB.w==="rain"?"<br>Rain-charged eggs also hatch twice as fast.":""}</p>
+   <h3>Egg</h3><div class="stats" style="grid-template-columns:repeat(6,1fr)">${EGGS.map((x,i)=>pick("lt",i,LAB.t===i,i+1,x.col)).join("")}</div>
+   <h3>Weather charge</h3><div class="stats" style="grid-template-columns:repeat(4,1fr)">${Object.entries(WEATHER).map(([k,x])=>pick("lw",k,LAB.w===k,x.name==="Thunderstorm"?"Storm":x.name,x.col)).join("")}</div>
+   <h3>Mutation</h3><div class="stats" style="grid-template-columns:repeat(5,1fr)">${pick("lm","random",LAB.m==="random","Weather odds")}${Object.entries(MUT).map(([k,x])=>pick("lm",k,LAB.m===k,x.name,x.col)).join("")}</div>
+   ${LAB.m!=="random"?`<p style="color:${MUT[LAB.m].col}">Guaranteed ${MUT[LAB.m].name} ${MUT[LAB.m].kind==="money"?"earner":"fighter"}.</p>`:""}
+   <h3>How many</h3><div class="stats" style="grid-template-columns:repeat(4,1fr)">${[1,3,5,10].map(n=>pick("ln",n,LAB.n===n,n)).join("")}</div>
+   <h3>Hatch</h3><div class="stats" style="grid-template-columns:1fr 1fr">${pick("lh",1,LAB.now,"Instantly")}${pick("lh",0,!LAB.now,"Normal timer")}</div>
+   <p class="keys">Base has ${slots()-SV.base.length} free spot${slots()-SV.base.length===1?"":"s"}. When it's full, weaker fish get replaced and extra eggs are sold.</p>`,
+   [{label:`Spawn ${LAB.n>1?LAB.n+" eggs":"egg"}`,fn:()=>{for(let i=0;i<LAB.n;i++)addEgg(LAB.t,true,LAB.w,LAB.m==="random"?null:LAB.m);
+      if(LAB.now){SV.base.forEach(it=>{if(!it.fish&&it.w===LAB.w&&it.t===LAB.t)it.at=0});hatchCheck()}else{sfx.egg();toast(`Spawned ${LAB.n} ${W.name} ${e.name}${LAB.n>1?"s":""}`,W.col)}
+      persist();updLobbyHud();eggLab()}},
+    {label:"Back to admin",cls:"link",fn:adminMenu}]);
+  const bind=(a,f)=>$("card").querySelectorAll(`[data-${a}]`).forEach(b=>b.onclick=()=>{f(b.dataset[a]);eggLab()});
+  bind("lt",v=>LAB.t=+v);bind("lm",v=>LAB.m=v);bind("lw",v=>LAB.w=v);bind("ln",v=>LAB.n=+v);bind("lh",v=>LAB.now=v==="1")}
 function resetAsk(){show(`<div class="eyebrow bad">Reset</div><h2>Wipe your save?</h2><p>All coins, eggs, fish and gear will be gone.</p>`,
   [{label:"Keep my save",fn:shopMenu},{label:"Yes, wipe it",cls:"link",fn:()=>{SV=fresh();SV.seen=true;SV.dex={};SV.quests=[];SV.pets=[];fillQuests();restockRival();persist();enterLobby()}}])}
 function dockMenu(){G.mode="menu";const sq=squad();
@@ -880,13 +902,14 @@ function renderLobby(now){syncPets(now);weatherFx(now);
   const nowMs=Date.now();
   LY.peds.forEach((p,i)=>{const open=i<slots();pedMeshes[i].material.color.set(open?"#c9b48a":"#7a7266");pedMeshes[i].material.opacity=open?1:.5;pedMeshes[i].material.transparent=!open;
     const it=open?SV.base[i]:null;
-    const key=it?`${it.t}:${it.fish||"egg"}:${it.mut||""}`:"";
-    const m=pedSlots[i].set(key,()=>{if(!it.fish)return makeEgg(it.t,17);const f=fishFor(it,40+it.t*3,{shadow:true});f.g.userData.f=f;return f.g});if(m&&m.userData.f)flickerMut(m.userData.f,now,i);
+    const key=it?`${it.t}:${it.fish||"egg"}:${it.mut||""}:${it.fish?"":it.w||""}`:"";
+    const m=pedSlots[i].set(key,()=>{if(!it.fish){const e=makeEgg(it.t,17);if(it.w){const c=WEATHER[it.w].col;const r=mesh(new THREE.TorusGeometry(19,1.6,6,32),mat(c,{emissive:col(c),emissiveIntensity:1}));r.rotation.x=Math.PI/2;e.add(r);e.userData.ring=r;e.userData.m.emissive.set(c)}return e}const f=fishFor(it,40+it.t*3,{shadow:true});f.g.userData.f=f;return f.g});if(m&&m.userData.f)flickerMut(m.userData.f,now,i);
     if(!it){if(!open)lab("pr"+i,"locked",Lo(p.x,p.y,20),lCam,"sm","#ffffff88");return}
     if(it.fish){const a=now*1.4+i;m.position.copy(Lo(p.x+Math.cos(a)*10,p.y+Math.sin(a)*8,38+Math.sin(now*3+i)*3));m.rotation.y=-a-Math.PI/2;
       lab("pr"+i,`${mutName(it)}Lv${lv(it)} +${fmt(itemRate(it))}/s`,Lo(p.x,p.y,64),lCam,"sm",it.mut?MUT[it.mut].col:it.fish==="fight"?"#ff8fa0":"#ffd166")}
     else{const left=(it.at-nowMs)/1000;m.position.copy(Lo(p.x,p.y,34+Math.sin(now*2+i)*2));m.rotation.y=now*.6+i;m.rotation.z=left<10?Math.sin(now*30)*.2:0;
-      m.userData.m.emissiveIntensity=.25+.15*Math.sin(now*3+i);lab("pr"+i,`hatch ${mmss(left)}`,Lo(p.x,p.y,58),lCam,"sm","#e8fbff")}});
+      m.userData.m.emissiveIntensity=(it.w?.45:.25)+.15*Math.sin(now*3+i);if(m.userData.ring){m.userData.ring.rotation.z=now*2;m.userData.ring.rotation.x=Math.PI/2+Math.sin(now*1.5+i)*.4}
+      lab("pr"+i,`${it.w?WEATHER[it.w].name+" · ":""}hatch ${mmss(left)}`,Lo(p.x,p.y,58),lCam,"sm",it.w?WEATHER[it.w].col:"#e8fbff")}});
   LY.rpeds.forEach((p,i)=>{const t=SV.rival[i];const e=rivalSlots[i].set(t!=null?"e"+t:"",()=>makeEgg(t,17));
     if(e){e.position.copy(Lo(p.x,p.y,34+Math.sin(now*2+i)*2));e.rotation.y=now*.6;lab("rv"+i,EGGS[t].name,Lo(p.x,p.y,60),lCam,"sm",EGGS[t].col)}
     else lab("rv"+i,Math.max(0,Math.ceil((SV.restock[i]-Date.now())/1000))+"s",Lo(p.x,p.y,24),lCam,"sm","#ffffffcc")});
