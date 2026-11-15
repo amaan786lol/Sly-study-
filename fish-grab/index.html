@@ -722,6 +722,7 @@ function adminMenu(){G.mode="menu";
    ${row("Eggs","Put an egg of any tier in your base.",EGGS.map((e,i)=>`<button class="buy" data-egg="${i}" type="button" style="background:${e.col};min-width:40px">${i+1}</button>`).join(""))}
    ${row("Fighter","Add a hatched Abyss Angler fighter at Lv10.",btn("fish","Add"))}
    ${row("Hatch","Hatch every egg in your base right now.",btn("hatch","Hatch all"))}
+   ${row("Upgrade everything","Free +1 level to every shop upgrade, every tool and every hatched fish.",btn("up1","Upgrade everything"))}
    ${row("Max out","Max every shop upgrade, every tool and every fish level.",btn("max","Max all"))}
    ${row("Stages","Mark all six stages as reached.",btn("stages","Unlock"))}
    ${row("Snapjaw","Refill all three of his pedestals now.",btn("restock","Restock"))}
@@ -733,6 +734,8 @@ function adminMenu(){G.mode="menu";
   const act={c1:()=>SV.coins+=1e4,c2:()=>SV.coins+=1e6,
     fish:()=>{SV.base.push({id:uid(),t:5,at:0,fish:"fight",lvl:MAXLV});if(SV.base.length>cap())SV.base.sort((a,b)=>itemScore(b)-itemScore(a)).length=cap()},
     hatch:()=>{SV.base.forEach(it=>{if(!it.fish)it.at=0});hatchCheck()},
+    up1:()=>{let n=0;for(const k in UPS)if(SV.up[k]<UPS[k].max){SV.up[k]++;n++}for(const k in TOOLS)if(SV.tools[k]<TOOLS[k].tiers.length){SV.tools[k]++;n++}
+      SV.base.forEach(it=>{if(it.fish&&lv(it)<MAXLV){it.lvl=lv(it)+1;n++}});if(LY)fitLobbyCam();toast(n?`Upgraded ${n} thing${n>1?"s":""} by one level`:"Everything is already maxed",n?"#7fe0a8":"#ffd166")},
     max:()=>{for(const k in UPS)SV.up[k]=UPS[k].max;for(const k in TOOLS)SV.tools[k]=TOOLS[k].tiers.length;SV.base.forEach(it=>it.lvl=MAXLV)},
     stages:()=>{SV.best=LAST;SV.unlocked=LAST},
     restock:()=>{SV.restock=[0,0,0];SV.rival=[null,null,null];restockRival()},
