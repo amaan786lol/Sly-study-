@@ -81,6 +81,7 @@ button:focus-visible{outline:3px solid var(--kelp);outline-offset:3px}
     <div class="chip"><span class="lbl">Income</span><b id="lRate">0/s</b></div>
     <div class="chip"><span class="lbl">Base</span><b id="lEggs">0/4</b></div>
     <div class="chip"><span class="lbl">Fighters</span><b id="lFight">0</b></div>
+    <div class="chip" id="wChip" style="pointer-events:auto;cursor:help"><span class="lbl">Weather</span><b id="lWeather">Clear</b><span class="lbl" id="lWLeft"></span></div>
     <div class="spacer"></div>
     <button class="pill mute" type="button">Sound on</button>
   </div>
@@ -137,9 +138,28 @@ const TOOLS={
  lantern:{name:"Lantern",what:"Your headlamp reaches farther in dark water.",tiers:[{n:"Oil Lantern",cost:1500,req:2},{n:"Glow Lantern",cost:9000,req:3},{n:"Sun Lantern",cost:40000,req:4}]}
 };
 const MAXLV=10;
+const MUT={
+ golden:  {name:"Golden",  kind:"money",money:2,  power:1,  col:"#ffd166",body:"#ffcf4a",em:"#7a5200",ei:.35,metal:.85},
+ diamond: {name:"Diamond", kind:"money",money:4,  power:1,  col:"#bff6ff",body:"#e2fcff",em:"#8ff0ff",ei:.45,metal:.9},
+ electric:{name:"Electric",kind:"power",money:1,  power:1.5,col:"#fff36b",body:null,     em:"#fff36b",ei:.6, metal:.3},
+ inferno: {name:"Inferno", kind:"power",money:1,  power:2.5,col:"#ff7a3a",body:"#ff5a2a",em:"#ff3a00",ei:.8, metal:.2}};
+const WEATHER={
+ clear:  {name:"Clear",       col:"#ffd166",desc:"A normal day. Small chance of Golden or Electric fish."},
+ rain:   {name:"Rain",        col:"#8fd3ff",desc:"Eggs in your base hatch twice as fast."},
+ storm:  {name:"Thunderstorm",col:"#c59bff",desc:"Fighters that hatch now often turn Electric. Inferno only hatches in storms."},
+ rainbow:{name:"Rainbow",     col:"#7fe0a8",desc:"Earners that hatch now often turn Golden. Diamond only hatches under a rainbow."}};
+const WLEN=150000;
+function weatherNow(){const now=Date.now();if(G.wOver&&now<G.wOver.until)return{type:G.wOver.type,left:(G.wOver.until-now)/1000};
+  const slot=Math.floor(now/WLEN);let x=Math.sin(slot*12.9898+78.233)*43758.5453;x-=Math.floor(x);
+  return{type:x<.4?"clear":x<.65?"rain":x<.85?"storm":"rainbow",left:(WLEN-now%WLEN)/1000}}
+function rollMut(fish,w){const r=Math.random();
+  if(fish==="earn"){if(w==="rainbow"){if(r<.08)return"diamond";if(r<.4)return"golden"}else if(r<.08)return"golden"}
+  else{if(w==="storm"){if(r<.08)return"inferno";if(r<.4)return"electric"}else if(r<.08)return"electric"}
+  return null}
+const mutName=it=>it.mut?MUT[it.mut].name+" ":"";
 const lv=it=>it.lvl||1;
 const gearCost=it=>Math.round(EGGS[it.t].rate*40*1.8**(lv(it)-1));
-const fishDmg=it=>Math.round(FISH[it.t].dmg*(1+.35*(lv(it)-1))*10)/10;
+const fishDmg=it=>Math.round(FISH[it.t].dmg*(1+.35*(lv(it)-1))*(it.mut?MUT[it.mut].power:1)*10)/10;
 const spearT=()=>SV.tools.spear?TOOLS.spear.tiers[SV.tools.spear-1]:null;
 const netReach=()=>SV.tools.net?TOOLS.net.tiers[SV.tools.net-1].reach:0;
 const RESTOCK=45000;
@@ -153,8 +173,8 @@ try{let r=JSON.parse(localStorage.getItem(KEY)||"null");
   if(r)SV=Object.assign(fresh(),r,{up:Object.assign(fresh().up,r.up||{}),tools:Object.assign(fresh().tools,r.tools||{})})}catch(e){}
 function persist(){SV.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(SV))}catch(e){}}
 const slots=()=>4+SV.up.slots;
-const itemRate=it=>EGGS[it.t].rate*(it.fish==="earn"?3:it.fish==="fight"?1.5:1)*(1+.3*(lv(it)-1));
-const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0)+(lv(it)-1)*.2;
+const itemRate=it=>EGGS[it.t].rate*(it.fish==="earn"?3:it.fish==="fight"?1.5:1)*(1+.3*(lv(it)-1))*(it.mut?MUT[it.mut].money:1);
+const itemScore=it=>it.t*3+(it.fish?1:0)+(it.fish==="fight"?.5:0)+(lv(it)-1)*.2+(it.mut?(MUT[it.mut].money+MUT[it.mut].power-2)*1.2:0);
 const rate=()=>SV.base.reduce((a,it)=>a+itemRate(it),0);
 const squad=()=>SV.base.filter(f=>f.fish==="fight").sort((a,b)=>fishDmg(b)-fishDmg(a)).slice(0,1+SV.up.squad);
 let offline=0;{const el=Math.min(7200,Math.max(0,(Date.now()-SV.last)/1000));offline=Math.floor(rate()*el);SV.vault+=offline}
@@ -187,7 +207,7 @@ const sfx={grab:()=>tone(660,.12,"triangle",.12,1.6),gold:()=>{tone(880,.1,"tria
  warn:()=>tone(110,.6,"sawtooth",.08,.7),chomp:()=>{tone(180,.35,"square",.18,.3);tone(70,.6,"sawtooth",.15,.5)},dash:()=>tone(300,.15,"sine",.08,2),
  coin:()=>{tone(988,.08,"square",.06);setTimeout(()=>tone(1319,.14,"square",.06),70)},buy:()=>{[523,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.15,"triangle",.1),i*70))},
  egg:()=>tone(400,.2,"triangle",.12,2),snap:()=>{tone(220,.1,"square",.15,.5);setTimeout(()=>tone(160,.15,"square",.15,.5),90)},
- hit:()=>tone(140+Math.random()*60,.09,"square",.07,.6),clang:()=>{tone(1200,.25,"triangle",.1,.98);tone(1800,.18,"sine",.06,.97)},hatch:()=>{[392,523,659].forEach((f,i)=>setTimeout(()=>tone(f,.18,"triangle",.1,1.2),i*90))},
+ hit:()=>tone(140+Math.random()*60,.09,"square",.07,.6),thunder:()=>{tone(55,1.4,"sawtooth",.12,.5);tone(80,.9,"square",.05,.4)},clang:()=>{tone(1200,.25,"triangle",.1,.98);tone(1800,.18,"sine",.06,.97)},hatch:()=>{[392,523,659].forEach((f,i)=>setTimeout(()=>tone(f,.18,"triangle",.1,1.2),i*90))},
  whoosh:()=>tone(90,.8,"sine",.15,3),win:()=>[523,659,784,1046,1319].forEach((f,i)=>setTimeout(()=>tone(f,.3,"triangle",.12),i*100)),
  clear:()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.25,"triangle",.12),i*110))};
 document.querySelectorAll(".mute").forEach(b=>b.onclick=()=>{muted=!muted;document.querySelectorAll(".mute").forEach(x=>x.textContent=muted?"Sound off":"Sound on")});
@@ -216,6 +236,11 @@ function makeFish(len,c,o={}){const g=new THREE.Group(),inner=new THREE.Group();
     if(o.brow){const b=mesh(new THREE.BoxGeometry(len*.14,len*.025,len*.02),bas("#04121f"));b.position.set(len*.3,len*h*.22,s*len*h*.33);b.rotation.z=-.4;inner.add(b)}});
   if(o.band){const b=mesh(new THREE.TorusGeometry(len*h*.42,len*.03,6,16),mat("#ff3b5c"));b.rotation.y=Math.PI/2;b.position.x=len*.12;inner.add(b)}
   return{g,inner,tp,body,len}}
+function applyMut(f,m){if(!m)return f;const M=MUT[m],b=f.body.material;if(M.body)b.color.set(M.body);b.emissive.set(M.em);b.emissiveIntensity=M.ei;b.metalness=M.metal;b.roughness=.25;
+  const aura=mesh(SPH,new THREE.MeshBasicMaterial({color:M.col,transparent:true,opacity:.16,depthWrite:false}));aura.scale.set(f.len*.62,f.len*.34,f.len*.3);f.inner.add(aura);f.aura=aura;f.mut=m;return f}
+function fishFor(it,len,o={}){return applyMut(makeFish(len,EGGS[it.t].col,Object.assign({brow:it.fish==="fight",band:it.fish==="fight"},o)),it.mut)}
+function flickerMut(f,now,k=0){if(!f||!f.mut)return;const M=MUT[f.mut];const fl=f.mut==="electric"?(Math.random()<.15?1.6:.5):f.mut==="inferno"?.7+.3*Math.sin(now*9+k):M.ei+.15*Math.sin(now*3+k);
+  f.body.material.emissiveIntensity=fl;f.aura.material.opacity=.12+.08*Math.sin(now*4+k)+(f.mut==="electric"&&fl>1?.2:0)}
 function poseFish(f,x,y,a,ph,z=0){f.g.position.copy(D(x,y,z));f.g.rotation.z=-a;f.inner.rotation.x=Math.cos(a)<0?Math.PI:0;f.tp.rotation.y=Math.sin(ph)*.45}
 function makeMother(boss){const eyeMat=new THREE.MeshStandardMaterial({color:"#04121f",emissive:col("#ff3b5c"),emissiveIntensity:0});
   const f=makeFish(100,boss?"#4a3a5f":"#3d5a73",{h:.5,belly:boss?"#b9a3c9":"#9bb3c4",fin:boss?"#2e2040":"#26394d",eyeMat,brow:true});f.eyeMat=eyeMat;
@@ -303,7 +328,7 @@ const lStatic=new THREE.Group(),lDyn=new THREE.Group();lScene.add(lStatic,lDyn);
 lScene.background=col("#7fd3e6");lScene.fog=new THREE.Fog("#7fd3e6",1500,5000);
 const hemi=new THREE.HemisphereLight("#ffffff","#3a6a7a",.55);lScene.add(hemi);
 const sun=new THREE.DirectionalLight("#fff3dd",.75);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);lScene.add(sun,sun.target);
-let pets=[],petKey="",bubbleMat=null;
+let pets=[],petKey="",bubbleMat=null,rain=null,rainPos=null,rainbowG=null,boltT=0,lastFx=0;const RAIN_N=600;
 let walker,crabM,pedSlots=[],rivalSlots=[],carrySlotL,ring,pedMeshes=[],water,forgeFire,forgeLight,walkerSpear;
 function makeSpear(t,len=46){const g=new THREE.Group(),c=TOOLS.spear.tiers[t-1].c;
   const sh=mesh(new THREE.CylinderGeometry(1.3,1.3,len,6),mat(t===1?"#8a5a3b":"#5a4a3a"));sh.rotation.z=Math.PI/2;g.add(sh);
@@ -363,7 +388,20 @@ function buildLobby(){clearGroup(lStatic);clearGroup(lDyn);const I=LY.isl;
   rivalSlots=LY.rpeds.map(()=>{const g=new THREE.Group();lDyn.add(g);return new Slot(g)});
   const cg=new THREE.Group();lDyn.add(cg);carrySlotL=new Slot(cg);
   sun.position.set(-W*.3,900,H*.5);sun.target.position.set(0,0,0);const sc=sun.shadow.camera;const m=Math.max(W,H)*.75;sc.left=-m;sc.right=m;sc.top=m;sc.bottom=-m;sc.near=100;sc.far=2500;sc.updateProjectionMatrix();
+  const rg=new THREE.BufferGeometry();rainPos=new Float32Array(RAIN_N*6);for(let i=0;i<RAIN_N;i++){const x=rand(-W*.7,W*.7),y=rand(0,600),z=rand(-H*.7,H*.7);rainPos.set([x,y,z,x+3,y+24,z+2],i*6)}
+  rg.setAttribute("position",new THREE.BufferAttribute(rainPos,3));rain=new THREE.LineSegments(rg,new THREE.LineBasicMaterial({color:"#d6ecff",transparent:true,opacity:.55}));rain.visible=false;lStatic.add(rain);
+  rainbowG=new THREE.Group();["#ff3b5c","#ff9f68","#ffd166","#7fe0a8","#5fb8ff","#c59bff"].forEach((c,i)=>{const t=mesh(new THREE.TorusGeometry(W*.34-i*13,6.5,6,64,Math.PI),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0,depthWrite:false,fog:false}));rainbowG.add(t)});
+  rainbowG.position.set(0,-W*.17,-H*.5);lStatic.add(rainbowG);
   fitLobbyCam()}
+const WFX={clear:{h:.55,s:.75,bg:"#7fd3e6",wa:"#1b8fb8"},rain:{h:.42,s:.4,bg:"#8aa3ad",wa:"#2a7090"},storm:{h:.26,s:.18,bg:"#4a5560",wa:"#1d4a60"},rainbow:{h:.62,s:.85,bg:"#a6e2f2",wa:"#22a0c8"}};
+function weatherFx(now){const dt=Math.min(.05,now-lastFx||0);lastFx=now;const w=weatherNow().type,f=WFX[w],k=Math.min(1,dt*2);
+  hemi.intensity+=(f.h-hemi.intensity)*k;sun.intensity+=(f.s-sun.intensity)*k;lScene.background.lerp(col(f.bg),k);lScene.fog.color.copy(lScene.background);water.material.color.lerp(col(f.wa),k);
+  const wet=w==="rain"||w==="storm";rain.visible=wet;if(wet){const n=w==="storm"?RAIN_N:RAIN_N*.6|0,sp=(w==="storm"?1100:800)*dt;
+    for(let i=0;i<RAIN_N;i++){const o=i*6;if(i>=n){rainPos[o+1]=rainPos[o+4]=-999;continue}let y=rainPos[o+1];if(y<-100)y=rand(0,600);y-=sp;if(y<0)y+=600;rainPos[o+1]=y;rainPos[o+4]=y+24}
+    rain.geometry.attributes.position.needsUpdate=true}
+  rainbowG.children.forEach(t=>{t.material.opacity+=((w==="rainbow"?.38:0)-t.material.opacity)*k});
+  if(w==="storm"&&G.mode!=="title"&&Math.random()<dt*.22){boltT=.25;setTimeout(sfx.thunder,300)}
+  if(boltT>0){boltT-=dt;hemi.intensity=1.6;$("flash").style.background="#e8f4ff";flash=Math.max(flash,.35)}else $("flash").style.background=""}
 function fitLobbyCam(){lCam.aspect=cw/ch;lCam.clearViewOffset();const I=LY.isl;
   const pts=[[I.x,I.y],[I.x+I.w,I.y],[I.x,I.y+I.h],[I.x+I.w,I.y+I.h]].flatMap(([x,y])=>[Lo(x,y,0),Lo(x,y,30)]);
   const topLim=1-Math.min(.35,(64*2)/ch),botLim=-.94,xLim=.95;let dist=Math.max(W,H)*1.1;const lookZ=H*.06;
@@ -418,7 +456,7 @@ function buildDive(){clearGroup(dStatic);clearGroup(dDyn);const s=S(),dk=1-s.dar
   momM=makeMother(!!s.boss);momM.g.scale.setScalar(mom.r*2.4/100);momM.g.visible=false;dDyn.add(momM.g);
   if(G.stage>=4&&!s.boss)momM.body.material.color.set("#2b3a4f");
   const cg=new THREE.Group();dDyn.add(cg);carrySlotD=new Slot(cg);
-  comp.forEach(c=>{c.f=makeFish(30+c.t*3+c.lvl,EGGS[c.t].col,{brow:true,band:true,glow:.1+s.dark*.4});dDyn.add(c.f.g)});
+  comp.forEach(c=>{c.f=applyMut(makeFish(30+c.t*3+c.lvl,EGGS[c.t].col,{brow:true,band:true,glow:.1+s.dark*.4}),c.mut);dDyn.add(c.f.g)});
   dAmb.intensity=.25+.5*dk;dSun.intensity=.15+.85*dk;dAmb.color.set(s.top);
   diverM.lamp.intensity=s.dark*(2.2+SV.tools.lantern*.9);diverM.lamp.distance=420+SV.tools.lantern*170;
   if(SV.tools.spear){const sp=makeSpear(SV.tools.spear,40);sp.position.set(4,-8,6);diverM.inner.add(sp)}
@@ -435,8 +473,9 @@ function addEgg(t,quiet){const it={t,at:Date.now()+HATCH[t]*1000,fish:null};let 
     if(itemScore(it)>itemScore(SV.base[lo])){SV.base[lo]=it;msg=`${EGGS[t].name} took the spot of your weakest pedestal`}
     else{const v=EGGS[t].rate*60;SV.coins+=v;msg=`Base full. Sold ${EGGS[t].name} for ${fmt(v)}`}}
   SV.base.sort((a,b)=>itemScore(b)-itemScore(a));if(!quiet){toast(msg,EGGS[t].col);sfx.egg()}persist();updLobbyHud()}
-function hatchCheck(){const now=Date.now();let any=false;for(const it of SV.base)if(!it.fish&&now>=it.at){it.fish=Math.random()<.5?"fight":"earn";any=true;
-    if(view==="lobby"&&G.mode!=="title"){sfx.hatch();toast(`Hatched: ${FISH[it.t].name}${it.fish==="fight"?" (fighter!)":" (earns 3x)"}`,EGGS[it.t].col)}}
+function hatchCheck(){const now=Date.now();let any=false;const w=weatherNow().type;for(const it of SV.base)if(!it.fish&&now>=it.at){it.fish=Math.random()<.5?"fight":"earn";it.mut=rollMut(it.fish,w);any=true;
+    if(view==="lobby"&&G.mode!=="title"){sfx.hatch();if(it.mut)setTimeout(sfx.gold,250);
+      toast(it.mut?`MUTATION! ${MUT[it.mut].name} ${FISH[it.t].name} (${MUT[it.mut].kind==="money"?`${MUT[it.mut].money}x coins`:`${MUT[it.mut].power}x power`})`:`Hatched: ${FISH[it.t].name}${it.fish==="fight"?" (fighter!)":" (earns 3x)"}`,it.mut?MUT[it.mut].col:EGGS[it.t].col)}}
   if(any){SV.base.sort((a,b)=>itemScore(b)-itemScore(a));persist();updLobbyHud()}}
 
 /* ================= resize ================= */
@@ -461,7 +500,7 @@ function titleScreen(){G.mode="title";setView("lobby");$("hudLobby").hidden=true
   <p>Steal eggs, hatch them into fish, and build a squad strong enough to fight the mothers of the deep.</p>
   <div class="list">
    <div class="row"><span><span class="t">Dive runs</span><br><span class="d">Start in the Shallows and push deeper one stage at a time. Surface to keep your loot. Get eaten and you lose the whole run.</span></span><span class="whirl tag">run</span></div>
-   <div class="row"><span><span class="t">Hatching</span><br><span class="d">Eggs in your base hatch into fish. Some earn triple coins. Others are fighters.</span></span><span class="good tag">hatch</span></div>
+   <div class="row"><span><span class="t">Hatching</span><br><span class="d">Eggs in your base hatch into fish. Some earn triple coins. Others are fighters. The weather when they hatch can mutate them.</span></span><span class="good tag">hatch</span></div>
    <div class="row"><span><span class="t">Fighters</span><br><span class="d">Your best fighters follow you on runs and bite Mother. Beat her HP to drive her off. Two stages have bosses.</span></span><span class="bad tag">fight</span></div>
    <div class="row"><span><span class="t">Forge</span><br><span class="d">The blacksmith makes spears, nets and lanterns for you, and gear that levels up your fish.</span></span><span class="tag" style="color:#ffb07a">craft</span></div>
    <div class="row"><span><span class="t">Snapjaw's Nest</span><br><span class="d">A crab guards three eggs on the island. Grab one and run it home.</span></span><span class="goldt tag">raid</span></div>
@@ -486,7 +525,7 @@ function forgeMenu(tab){G.mode="menu";let body="";
     body=list.length?list.map(({it,i})=>{if(!it.fish)return `<div class="row dim"><span><span class="t" style="color:${EGGS[it.t].col}">${EGGS[it.t].name}</span><br><span class="d">Still an egg. Hatches in ${mmss((it.at-Date.now())/1000)}</span></span><span></span></div>`;
       const max=lv(it)>=MAXLV,c=gearCost(it),fight=it.fish==="fight";
       const now=fight?`${fishDmg(it)} dmg`:`${fmt(itemRate(it))}/s`,next=fight?`${fishDmg({...it,lvl:lv(it)+1})} dmg`:`${fmt(itemRate({...it,lvl:lv(it)+1}))}/s`;
-      return `<div class="row"><span><span class="t" style="color:${EGGS[it.t].col}">${FISH[it.t].name}</span> <span class="d">Lv${lv(it)} ${fight?"fighter":"earner"}</span><br><span class="d">${fight?"Iron fangs":"Gold scales"}: ${now}${max?"":` → ${next}`}</span></span>
+      return `<div class="row"><span><span class="t" style="color:${it.mut?MUT[it.mut].col:EGGS[it.t].col}">${mutName(it)}${FISH[it.t].name}</span> <span class="d">Lv${lv(it)} ${fight?"fighter":"earner"}</span><br><span class="d">${fight?"Iron fangs":"Gold scales"}: ${now}${max?"":` → ${next}`}</span></span>
       <button class="buy" data-fish="${i}" type="button" ${max||SV.coins<c?"disabled":""}>${max?"Max":fmt(c)}</button></div>`}).join(""):`<div class="row"><span class="d">No fish yet. Bring eggs home and let them hatch.</span><span></span></div>`}
   show(`<div class="eyebrow">Forge</div><h2>Old Barnacle's Forge</h2><p>You have <b class="goldt">${fmt(SV.coins)}</b> coins.</p>
    <div class="stats" style="grid-template-columns:1fr 1fr"><button class="buy ${tab==="tools"?"":"ghost"}" data-tab="tools" type="button" aria-pressed="${tab==="tools"}">Your tools</button><button class="buy ${tab==="fish"?"":"ghost"}" data-tab="fish" type="button" aria-pressed="${tab==="fish"}">Fish gear</button></div>
@@ -506,6 +545,8 @@ function adminMenu(){G.mode="menu";
    ${row("Max out","Max every shop upgrade, every tool and every fish level.",btn("max","Max all"))}
    ${row("Stages","Mark all six stages as reached.",btn("stages","Unlock"))}
    ${row("Snapjaw","Refill all three of his pedestals now.",btn("restock","Restock"))}
+   ${row("Weather","Change the island weather for the next 2.5 minutes.",Object.entries(WEATHER).map(([k,w])=>`<button class="buy" data-w="${k}" type="button" style="background:${w.col};min-width:0">${w.name}</button>`).join(""))}
+   ${row("Mutants","Add a Lv1 Blue Barracuda with a mutation.",Object.entries(MUT).map(([k,m])=>`<button class="buy" data-m="${k}" type="button" style="background:${m.col};min-width:0">${m.name}</button>`).join(""))}
    ${row("God mode","Mother and Snapjaw can't hurt you. Lasts until you reload.",btn("god",G.god?"Turn off":"Turn on"))}
   </div>`,[{label:"Close",fn:closeMenu},{label:"Reset all progress",cls:"link",fn:resetAsk}]);
   const act={c1:()=>SV.coins+=1e4,c2:()=>SV.coins+=1e6,
@@ -516,13 +557,16 @@ function adminMenu(){G.mode="menu";
     restock:()=>{SV.restock=[0,0,0];SV.rival=[null,null,null];restockRival()},
     god:()=>{G.god=!G.god}};
   $("card").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{act[b.dataset.a]();SV.base.sort((a,b)=>itemScore(b)-itemScore(a));sfx.buy();persist();updLobbyHud();adminMenu()});
-  $("card").querySelectorAll("[data-egg]").forEach(b=>b.onclick=()=>{addEgg(+b.dataset.egg);adminMenu()})}
+  $("card").querySelectorAll("[data-egg]").forEach(b=>b.onclick=()=>{addEgg(+b.dataset.egg);adminMenu()});
+  $("card").querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{G.wOver={type:b.dataset.w,until:Date.now()+WLEN};sfx.buy();updLobbyHud();adminMenu()});
+  $("card").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{const m=b.dataset.m;SV.base.push({t:3,at:0,fish:MUT[m].kind==="money"?"earn":"fight",mut:m,lvl:1});
+    SV.base.sort((a,b)=>itemScore(b)-itemScore(a));if(SV.base.length>slots())SV.base.length=slots();sfx.gold();persist();updLobbyHud();adminMenu()})}
 function resetAsk(){show(`<div class="eyebrow bad">Reset</div><h2>Wipe your save?</h2><p>All coins, eggs, fish and gear will be gone.</p>`,
   [{label:"Keep my save",fn:shopMenu},{label:"Yes, wipe it",cls:"link",fn:()=>{SV=fresh();SV.seen=true;restockRival();persist();enterLobby()}}])}
 function dockMenu(){G.mode="menu";const sq=squad();
   const rows=STAGES.map((s,i)=>`<div class="row ${i<=SV.best+1?"":"dim"}"><span><span class="t">${i+1}. ${s.name}</span> <span class="d">${s.depth}</span><br><span class="d">Grab ${s.quota} eggs · ${s.value} each · nest: <span style="color:${EGGS[i].col}">${EGGS[i].name}</span></span></span>
     <span class="tag ${s.boss?"bad":"d"}">${s.boss?"BOSS":i<=SV.best?"reached":"—"}</span></div>`).join("");
-  const sqRows=sq.length?sq.map(f=>`<div class="row"><span><span class="t" style="color:${EGGS[f.t].col}">${FISH[f.t].name}</span><br><span class="d">Lv${lv(f)} · bites for ${fishDmg(f)} damage</span></span><span class="tag bad">fighter</span></div>`).join("")
+  const sqRows=sq.length?sq.map(f=>`<div class="row"><span><span class="t" style="color:${f.mut?MUT[f.mut].col:EGGS[f.t].col}">${mutName(f)}${FISH[f.t].name}</span><br><span class="d">Lv${lv(f)} · bites for ${fishDmg(f)} damage</span></span><span class="tag bad">fighter</span></div>`).join("")
     :`<div class="row"><span class="d">No fighters yet. About half of your eggs hatch into fighters. Without them you can only dodge Mother.</span><span></span></div>`;
   show(`<div class="eyebrow">Dive Dock</div><h2>Start a run</h2><p>Every run starts in the Shallows. After each stage, surface at the boat to bank your loot or take the whirlpool deeper.</p>
    <div class="list">${rows}</div><h3>Your squad (${sq.length}/${1+SV.up.squad})</h3><div class="list">${sqRows}</div>`,
@@ -536,7 +580,7 @@ function spawnBaby(edge){const s=S();const gold=Math.random()<.12;let x,y;
   attachBaby(b);return b}
 function placePortal(){portal={x:nest.x<W/2?W*.84:W*.16,y:H-80}}
 function startRun(){RUN={haul:0,eggs:[],bosses:0,drove:0};G.lives=1+SV.up.shield;
-  comp=squad().map((it,i)=>({t:it.t,dmg:fishDmg(it),lvl:lv(it),x:W/2,y:SURF+60,vx:0,vy:0,cd:0,ph:rand(0,6),i}));
+  comp=squad().map((it,i)=>({t:it.t,dmg:fishDmg(it),lvl:lv(it),mut:it.mut,x:W/2,y:SURF+60,vx:0,vy:0,cd:0,ph:rand(0,6),i}));
   G.stage=0;startStage()}
 function startStage(){const s=S();
   Object.assign(P,{x:W/2,y:SURF+90,vx:0,vy:0,a:Math.PI/2,dash:0,cd:0,inv:1.5,carry:null});
@@ -662,7 +706,10 @@ function updateLobby(dt){const I=LY.isl;const carrying=P.carry!=null;
 
 /* ================= HUD ================= */
 let hudT=0;
-function updLobbyHud(){$("lCoins").textContent=fmt(SV.coins);$("lRate").textContent=fmt(rate())+"/s";$("lEggs").textContent=`${SV.base.length}/${slots()}`;$("lFight").textContent=SV.base.filter(f=>f.fish==="fight").length}
+let lastW=null;
+function updWeatherHud(){const w=weatherNow(),Wd=WEATHER[w.type];$("lWeather").textContent=Wd.name;$("lWeather").style.color=Wd.col;$("lWLeft").textContent=mmss(w.left);$("wChip").title=Wd.desc;
+  if(lastW&&lastW!==w.type&&G.mode==="lobby"){toast(`${Wd.name}! ${Wd.desc}`,Wd.col);if(w.type==="storm")sfx.thunder()}lastW=w.type}
+function updLobbyHud(){updWeatherHud();$("lCoins").textContent=fmt(SV.coins);$("lRate").textContent=fmt(rate())+"/s";$("lEggs").textContent=`${SV.base.length}/${slots()}`;$("lFight").textContent=SV.base.filter(f=>f.fish==="fight").length}
 function updHud(){const s=S();$("hStage").textContent=`${G.stage+1} · ${s.name}`;$("hFish").textContent=`${G.count}/${s.quota}`;$("hFish").className=G.count>=s.quota?"good":"";
   $("hHaul").textContent=fmt(RUN?RUN.haul:0);
   $("lives").textContent="♥".repeat(Math.max(0,G.lives))+"♡".repeat(Math.max(0,1+SV.up.shield-G.lives))}
@@ -694,18 +741,18 @@ function doDash(){if((G.mode!=="dive"&&G.mode!=="lobby")||P.cd>0)return;P.dash=.
 
 /* ================= sync + render ================= */
 function blink(){return P.inv>0&&((P.inv*10)|0)%2}
-function syncPets(now){const want=SV.base.filter(f=>f.fish).slice(0,3);const key=want.map(it=>`${it.t}${it.fish}${lv(it)}`).join("|");
+function syncPets(now){const want=SV.base.filter(f=>f.fish).slice(0,3);const key=want.map(it=>`${it.t}${it.fish}${lv(it)}${it.mut||""}`).join("|");
   if(key!==petKey){pets.forEach(p=>lDyn.remove(p.g));petKey=key;
     if(!bubbleMat)bubbleMat=new THREE.MeshStandardMaterial({color:"#bfefff",transparent:true,opacity:.28,roughness:.05,metalness:.2,depthWrite:false});
-    pets=want.map((it,i)=>{const g=new THREE.Group();const f=makeFish(24+it.t*2+lv(it),EGGS[it.t].col,{brow:it.fish==="fight",band:it.fish==="fight"});g.add(f.g);
+    pets=want.map((it,i)=>{const g=new THREE.Group();const f=fishFor(it,24+it.t*2+lv(it));g.add(f.g);
       const b=mesh(SPH,bubbleMat);b.scale.setScalar(20+it.t*1.2);g.add(b);lDyn.add(g);
       return{g,f,x:P.x-30*(i+1),y:P.y,a:0,ph:rand(0,6)}})}
   const show=G.mode!=="title";
   pets.forEach((p,i)=>{const lead=i?pets[i-1]:P;const dx=lead.x-p.x,dy=lead.y-p.y,d=Math.hypot(dx,dy)||1,gap=i?34:40;
     if(d>gap){const k=Math.min(1,(d-gap)/d);p.x+=dx*k*.12;p.y+=dy*k*.12;p.a=Math.atan2(dy,dx)}
     p.ph+=.12;p.g.visible=show;p.g.position.copy(Lo(p.x,p.y,42+Math.sin(now*2.2+i*1.7)*5));
-    p.f.g.rotation.y=-p.a;p.f.tp.rotation.y=Math.sin(p.ph)*.5;p.f.g.rotation.z=Math.sin(now*3+i)*.08})}
-function renderLobby(now){syncPets(now);
+    flickerMut(p.f,now,i+7);p.f.g.rotation.y=-p.a;p.f.tp.rotation.y=Math.sin(p.ph)*.5;p.f.g.rotation.z=Math.sin(now*3+i)*.08})}
+function renderLobby(now){syncPets(now);weatherFx(now);
   const w=walker;w.g.position.copy(Lo(P.x,P.y,2));w.g.rotation.y=-P.a;const sp=Math.hypot(P.vx,P.vy);
   w.legs.forEach((l,i)=>l.rotation.z=Math.sin(P.kick*2+i*Math.PI)*Math.min(.7,sp/200));w.g.position.y+=Math.abs(Math.sin(P.kick*2))*Math.min(3,sp/60);
   w.g.visible=!blink()&&G.mode!=="title";
@@ -716,11 +763,11 @@ function renderLobby(now){syncPets(now);
   const nowMs=Date.now();
   LY.peds.forEach((p,i)=>{const open=i<slots();pedMeshes[i].material.color.set(open?"#c9b48a":"#7a7266");pedMeshes[i].material.opacity=open?1:.5;pedMeshes[i].material.transparent=!open;
     const it=open?SV.base[i]:null;
-    const key=it?`${it.t}:${it.fish||"egg"}`:"";
-    const m=pedSlots[i].set(key,()=>it.fish?makeFish(40+it.t*3,EGGS[it.t].col,{brow:it.fish==="fight",band:it.fish==="fight",shadow:true}).g:makeEgg(it.t,17));
+    const key=it?`${it.t}:${it.fish||"egg"}:${it.mut||""}`:"";
+    const m=pedSlots[i].set(key,()=>{if(!it.fish)return makeEgg(it.t,17);const f=fishFor(it,40+it.t*3,{shadow:true});f.g.userData.f=f;return f.g});if(m&&m.userData.f)flickerMut(m.userData.f,now,i);
     if(!it){if(!open)lab("pr"+i,"locked",Lo(p.x,p.y,20),lCam,"sm","#ffffff88");return}
     if(it.fish){const a=now*1.4+i;m.position.copy(Lo(p.x+Math.cos(a)*10,p.y+Math.sin(a)*8,38+Math.sin(now*3+i)*3));m.rotation.y=-a-Math.PI/2;
-      lab("pr"+i,`Lv${lv(it)} · +${fmt(itemRate(it))}/s${it.fish==="fight"?" · fighter":""}`,Lo(p.x,p.y,64),lCam,"sm",it.fish==="fight"?"#ff8fa0":"#ffd166")}
+      lab("pr"+i,`${mutName(it)}Lv${lv(it)} +${fmt(itemRate(it))}/s`,Lo(p.x,p.y,64),lCam,"sm",it.mut?MUT[it.mut].col:it.fish==="fight"?"#ff8fa0":"#ffd166")}
     else{const left=(it.at-nowMs)/1000;m.position.copy(Lo(p.x,p.y,34+Math.sin(now*2+i)*2));m.rotation.y=now*.6+i;m.rotation.z=left<10?Math.sin(now*30)*.2:0;
       m.userData.m.emissiveIntensity=.25+.15*Math.sin(now*3+i);lab("pr"+i,`hatch ${mmss(left)}`,Lo(p.x,p.y,58),lCam,"sm","#e8fbff")}});
   LY.rpeds.forEach((p,i)=>{const t=SV.rival[i];const e=rivalSlots[i].set(t!=null?"e"+t:"",()=>makeEgg(t,17));
@@ -745,7 +792,7 @@ function renderDive(now){const s=S();
   dm.fins.forEach((f,i)=>f.rotation.z=Math.sin(P.kick+i*Math.PI)*.4);dm.g.visible=!blink()&&G.mode!=="chomp";
   const ce=carrySlotD.set(G.egg==="carried"?"e"+G.stage:"",()=>makeEgg(G.stage,10));if(ce){ce.position.copy(D(P.x,P.y-28,0));ce.userData.m.emissiveIntensity=.6+.3*Math.sin(now*6)}
   const ne=nestSlot.set(G.egg==="nest"?"e"+G.stage:"",()=>makeEgg(G.stage,14));if(ne){ne.rotation.y=now*.5;ne.userData.m.emissiveIntensity=.35+.25*Math.sin(now*3)+s.dark*.5}
-  comp.forEach(c=>{poseFish(c.f,c.x,c.y,Math.atan2(c.vy,c.vx||.01),c.ph,12)});
+  comp.forEach((c,i)=>{poseFish(c.f,c.x,c.y,Math.atan2(c.vy,c.vx||.01),c.ph,12);flickerMut(c.f,now,i)});
   const mv=mom.state==="hunt"||mom.state==="leave";momM.g.visible=mv;
   if(mv){poseFish(momM,mom.x,mom.y,mom.a,mom.ph,0);momM.mouth.scale.setScalar(Math.max(.01,mom.mouth));momM.eyeMat.emissiveIntensity=mom.state==="hunt"?1.6:.2;
     momM.bodyMat.emissive.set(mom.stun>0?"#ff3b5c":"#000000");momM.bodyMat.emissiveIntensity=mom.stun>0?.5:0;
@@ -767,6 +814,7 @@ let toastT=0;function toast(t,c){const el=$("toast");el.textContent=t;el.style.c
 let last=performance.now(),saveT=0;
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
   SV.vault+=rate()*dt;
+  const W0=weatherNow();if(W0.type==="rain")for(const it of SV.base)if(!it.fish)it.at-=dt*1000;
   if(G.mode==="lobby")updateLobby(dt);else if(G.mode==="dive")updateDive(dt);else if(G.mode==="chomp")stepParts(dt);
   hudT-=dt;if(hudT<=0){hudT=.25;if(view==="lobby")hatchCheck();updLobbyHud();$("dash").classList.toggle("ready",P.cd<=0)}
   saveT+=dt;if(saveT>5){saveT=0;persist()}
