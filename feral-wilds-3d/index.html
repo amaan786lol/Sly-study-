@@ -165,7 +165,7 @@ canvas.prev{width:72px;height:72px;align-self:center}
       </div>
     </div>
     <div class="side">
-      <div class="btns"><button class="pill" id="healBtn">Heal ×<span id="potTxt">0</span></button><button class="pill" id="mapBtn">Map</button><button class="pill" id="menuBtn">Menu</button></div>
+      <div class="btns"><button class="pill" id="healBtn">Heal ×<span id="potTxt">0</span></button><button class="pill" id="mapBtn">Map</button><button class="pill" id="menuBtn">Menu</button><button class="pill" id="adminBtn" style="border-color:var(--gold);color:var(--gold)">Admin</button></div>
       <canvas id="mini" width="300" height="300" aria-label="Minimap"></canvas>
       <div id="obj"></div>
     </div>
@@ -185,7 +185,7 @@ canvas.prev{width:72px;height:72px;align-self:center}
     <div class="inner" style="padding-top:6vh">
       <h1 class="logo"><span class="a">FERAL</span> <span class="b">WILDS</span> <span style="color:var(--tech)">3D</span></h1>
       <p class="tag">A whole island to explore. Forests, deserts, swamps and snowfields full of beasts. High-tech outposts hiding loot. Six bosses waiting in their lairs.</p>
-      <div class="row" style="margin-top:4px"><button class="btn w big" id="startBtn">Start adventure</button></div>
+      <div class="row" style="margin-top:4px"><button class="btn w big" id="startBtn">Start adventure</button><button class="btn g big" id="titleAdmin">Admin panel</button></div>
       <div class="help">
         <div><b>Move</b> WASD or arrows · touch: drag left side</div>
         <div><b>Shoot</b> hold mouse · touch: auto-aims</div>
@@ -471,7 +471,7 @@ addEventListener('keydown',e=>{unlockAudio();keys[e.code]=true;
     if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
     if(e.code==='Space'||e.code==='ShiftLeft'||e.code==='ShiftRight'||e.code==='Digit1')useAbility(0);if(e.code==='Digit2'||e.code==='KeyF')useAbility(1);if(e.code==='Digit3'||e.code==='KeyR')useAbility(2);
     if(e.code==='KeyQ')usePotion();if(e.code==='KeyE')interact();if(e.code==='KeyM')openMap();
-    if(e.code==='KeyP'||e.code==='Escape')openMenu();if(e.code==='Backquote')openAdmin();
+    if(e.code==='KeyP'||e.code==='Escape')openMenu();if(e.code==='Backquote'||e.key==='`'||e.key==='~')openAdmin();
   }else if(state==='talk'){if(['Space','Enter','KeyE'].includes(e.code)){e.preventDefault();dlgNext()}else if(e.code==='Escape')closeDlg(false)}
   else if(state==='admin'){if(e.code==='Escape'||e.code==='Backquote')closeAdmin()}
   else if(e.code==='Backquote'&&state!=='title')openAdmin();
@@ -487,7 +487,7 @@ cv.addEventListener('pointermove',e=>{const w=toScreen(e);if(e.pointerId===joy.i
 const pUp=e=>{if(e.pointerId===joy.id)joy.id=null;if(e.pointerType==='mouse')ptr.down=false};
 cv.addEventListener('pointerup',pUp);cv.addEventListener('pointercancel',pUp);cv.addEventListener('contextmenu',e=>e.preventDefault());
 $('tHeal').addEventListener('pointerdown',e=>{e.preventDefault();usePotion()});
-$('healBtn').onclick=()=>usePotion();$('mapBtn').onclick=()=>openMap();$('mini').onclick=()=>openMap();$('menuBtn').onclick=()=>openMenu();
+$('healBtn').onclick=()=>usePotion();$('mapBtn').onclick=()=>openMap();$('mini').onclick=()=>openMap();$('menuBtn').onclick=()=>openMenu();$('adminBtn').onclick=()=>openAdmin();$('titleAdmin').onclick=()=>{$('startBtn').click();setTimeout(openAdmin,50)};
 $('prompt').onclick=()=>interact();
 
 /* ================= STATE ================= */
