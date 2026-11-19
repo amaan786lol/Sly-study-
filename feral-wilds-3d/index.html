@@ -236,13 +236,15 @@ function resize(){
 addEventListener('resize',resize);resize();
 
 /* ================= WORLD ================= */
-const WORLD_ID=(()=>{try{if(location.hash==='#moon')return 2;if(location.hash==='#home')return 1;const s=JSON.parse(localStorage.getItem('feral-wilds-3d-v1'));return s&&s.world===2?2:1}catch(e){return location.hash==='#moon'?2:1}})();
-const MOON=WORLD_ID===2;
+const WORLD_ID=(()=>{const h={'#home':1,'#moon':2,'#mars':3}[location.hash];if(h)return h;try{const s=JSON.parse(localStorage.getItem('feral-wilds-3d-v1'));return s&&(s.world===2||s.world===3)?s.world:1}catch(e){return 1}})();
+const MOON=WORLD_ID===2,MARS=WORLD_ID===3,SPACE=WORLD_ID>1;
+const WORLD_BOSSES={1:['grizzlor','sentinel','venom','hydra','roc','omega'],2:['mothership','titan','alienqueen','starcore'],3:['sandkraken','magmagolem','tripod','redking']};
+const WORLDS={1:{name:'World 1 · Island',hash:'home',key:'pos'},2:{name:'World 2 · Moon',hash:'moon',key:'pos2'},3:{name:'World 3 · Mars',hash:'mars',key:'pos3'}};
 const WR=2900, CH=400, VILLAGE=480;
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const R=mulberry(MOON?7734:20261119);const rr=(a,b)=>a+R()*(b-a);
+const R=mulberry(MARS?4242:MOON?7734:20261119);const rr=(a,b)=>a+R()*(b-a);
 function wob(x,y){return Math.sin(x*.0021+1.3)*Math.cos(y*.0017-.7)*.35+Math.sin((x+y)*.004)*.12}
-const TZ=MOON?{x:Math.cos(3*Math.PI/4)*1600,y:Math.sin(3*Math.PI/4)*1600,r:640}:{x:Math.cos(-Math.PI/4)*1650,y:Math.sin(-Math.PI/4)*1650,r:620};
+const TZ=MARS?{x:Math.cos(Math.PI/4)*1700,y:Math.sin(Math.PI/4)*1700,r:620}:MOON?{x:Math.cos(3*Math.PI/4)*1600,y:Math.sin(3*Math.PI/4)*1600,r:640}:{x:Math.cos(-Math.PI/4)*1650,y:Math.sin(-Math.PI/4)*1650,r:620};
 function biomeAt(x,y){
   const d=Math.hypot(x,y),a0=Math.atan2(y,x);
   if(d>WR)return 'sea';if(d>WR-150+Math.sin(a0*7)*40)return 'beach';if(d<VILLAGE)return 'village';
@@ -250,9 +252,11 @@ function biomeAt(x,y){
   let a=a0+wob(x,y);if(a>Math.PI)a-=TAU;if(a<-Math.PI)a+=TAU;
   if(a>=-2.356&&a<-.785)return 'forest';if(a>=-.785&&a<.785)return 'desert';if(a>=.785&&a<2.356)return 'swamp';return 'snow';
 }
-const BIOME=MOON?{village:{name:'Moon Base'},forest:{name:'Silver Highlands'},desert:{name:'Dust Sea'},swamp:{name:'Crystal Fields'},snow:{name:'Crater Rim'},beach:{name:'Moon Edge'},sea:{name:'Deep Space'},tech:{name:'Lunar Tech Sector'}}
+const BIOME=MARS?{village:{name:'Mars Colony'},forest:{name:'Rust Canyons'},desert:{name:'Red Dunes'},swamp:{name:'Lava Fields'},snow:{name:'Polar Ice Cap'},beach:{name:'Crater Edge'},sea:{name:'Deep Space'},tech:{name:'Colony Tech Works'}}
+  :MOON?{village:{name:'Moon Base'},forest:{name:'Silver Highlands'},desert:{name:'Dust Sea'},swamp:{name:'Crystal Fields'},snow:{name:'Crater Rim'},beach:{name:'Moon Edge'},sea:{name:'Deep Space'},tech:{name:'Lunar Tech Sector'}}
   :{village:{name:'Home Village'},forest:{name:'Whispering Woods'},desert:{name:'Sunscorch Desert'},swamp:{name:'Murkfen Swamp'},snow:{name:'Frostpeak Tundra'},beach:{name:'Shoreline'},sea:{name:'Open Sea'},tech:{name:'Neon District'}};
-const lvlAt=d=>Math.max(1,Math.floor(1+(d-400)/320))+(MOON?7:0);
+const LVOFF=MARS?14:MOON?7:0;
+const lvlAt=d=>Math.max(1,Math.floor(1+(d-400)/320))+LVOFF;
 const BOSS={
   grizzlor:{name:'GRIZZLOR',title:'Ironclaw Bear',hp:650,r:46,col:'#7a4a2a',theme:'wild'},
   sentinel:{name:'SENTINEL-9',title:'Security AI',hp:900,r:44,col:'#8a98b0',theme:'tech'},
@@ -263,15 +267,20 @@ const BOSS={
   mothership:{name:'MOTHERSHIP',title:'Alien Command Saucer',hp:1400,r:54,col:'#aab4c8',theme:'tech',ai:'sentinel',minion:'ufo'},
   titan:{name:'MOON TITAN',title:'Living Mountain',hp:1600,r:52,col:'#8a909a',theme:'wild',ai:'grizzlor',minion:'alien'},
   alienqueen:{name:'ALIEN QUEEN',title:'Hive Empress',hp:1800,r:48,col:'#3fae4a',theme:'wild',ai:'venom',minion:'alien'},
+  sandkraken:{name:'SAND KRAKEN',title:'Dune Devourer',hp:1100,r:56,col:'#b85a2a',theme:'wild',ai:'grizzlor',minion:'sandworm'},
+  magmagolem:{name:'MAGMA GOLEM',title:'Molten Giant',hp:1250,r:54,col:'#3a2a24',theme:'wild',ai:'hydra',minion:'firebeetle'},
+  tripod:{name:'TRIPOD',title:'Martian War Machine',hp:1350,r:50,col:'#9aa0aa',theme:'tech',ai:'sentinel',minion:'rover'},
+  redking:{name:'RED KING',title:'Ruler of Mars',hp:1900,r:60,col:'#5a0a14',theme:'tech',ai:'omega',minion:'martian'},
   starcore:{name:'STAR CORE',title:'Heart of the Moon',hp:2400,r:58,col:'#2a2440',theme:'tech',ai:'omega',minion:'ufo'},
 };
 const bAi=e=>BOSS[e.kind].ai||e.kind;
-const LAIRS=(MOON?[{kind:'mothership',a:-Math.PI/2,d:1400},{kind:'titan',a:0,d:1650},{kind:'alienqueen',a:Math.PI/2,d:1700},{kind:'starcore',a:Math.PI,d:2300,sealed:true,need:3}]
+const LAIRS=(MARS?[{kind:'sandkraken',a:-Math.PI/2,d:1500},{kind:'magmagolem',a:Math.PI/2,d:1600},{kind:'tripod',a:0,d:1500},{kind:'redking',a:Math.PI,d:2300,sealed:true,need:3}]
+  :MOON?[{kind:'mothership',a:-Math.PI/2,d:1400},{kind:'titan',a:0,d:1650},{kind:'alienqueen',a:Math.PI/2,d:1700},{kind:'starcore',a:Math.PI,d:2300,sealed:true,need:3}]
   :[{kind:'grizzlor',a:-Math.PI/2,d:1300},{kind:'sentinel',a:-Math.PI/4,d:1650},{kind:'venom',a:Math.PI/2,d:1500},{kind:'hydra',a:Math.PI/4,d:2000},{kind:'roc',a:Math.PI,d:2050},{kind:'omega',a:3*Math.PI/4,d:2450,sealed:true,need:5}]
 ).map(l=>Object.assign(l,{x:Math.cos(l.a)*l.d,y:Math.sin(l.a)*l.d,R:360,lvl:lvlAt(l.d)}));
-const OUTPOSTS=(MOON?[{a:-Math.PI/2-.6,d:2100},{a:.55,d:2000},{a:Math.PI/2+.62,d:1300}]:[{a:-Math.PI/2-.5,d:2050},{a:.4,d:1450},{a:Math.PI/2+.35,d:2150},{a:Math.PI-.5,d:1550}])
-  .map((o,i)=>({id:i+(MOON?10:0),x:Math.cos(o.a)*o.d,y:Math.sin(o.a)*o.d,w:560,h:420,lvl:lvlAt(o.d),spawned:false}));
-const KIOSKS=[{id:'upgrades',x:-140,y:-90,name:'Upgrade Lab',col:'#c38bff'},{id:'shop',x:140,y:-90,name:MOON?'Moon Shop':'Shop',col:'#ffc93c'},{id:'crew',x:0,y:-210,name:'Recruit Hall',col:'#9be15d'},{id:'rocket',x:0,y:-355,name:MOON?'Rocket Home':'Moon Rocket',col:'#ff7a59'}];
+const OUTPOSTS=(MARS?[{a:-Math.PI/2-.6,d:2100},{a:-.6,d:2200},{a:Math.PI/2+.6,d:2100}]:MOON?[{a:-Math.PI/2-.6,d:2100},{a:.55,d:2000},{a:Math.PI/2+.62,d:1300}]:[{a:-Math.PI/2-.5,d:2050},{a:.4,d:1450},{a:Math.PI/2+.35,d:2150},{a:Math.PI-.5,d:1550}])
+  .map((o,i)=>({id:i+(MARS?20:MOON?10:0),x:Math.cos(o.a)*o.d,y:Math.sin(o.a)*o.d,w:560,h:420,lvl:lvlAt(o.d),spawned:false}));
+const KIOSKS=[{id:'upgrades',x:-140,y:-90,name:'Upgrade Lab',col:'#c38bff'},{id:'shop',x:140,y:-90,name:MARS?'Colony Shop':MOON?'Moon Shop':'Shop',col:'#ffc93c'},{id:'crew',x:0,y:-210,name:'Recruit Hall',col:'#9be15d'},{id:'rocket',x:0,y:-355,name:'Rocket',col:'#ff7a59'}];
 
 // obstacles in a chunk grid
 const grid=new Map(),OBS=[];
@@ -285,6 +294,11 @@ function zoneBlocked(x,y,pad){
 }
 function pickObs(b,k){
   if(b==='tech')return k<.4?{kind:'server',vr:rr(16,22)}:k<.7?{kind:'pylon',vr:10,cr:8}:{kind:'crate',vr:rr(12,16)};
+  if(MARS){if(b==='swamp')return k<.22?{kind:'lava',vr:rr(40,85),cr:0}:{kind:'rock',vr:rr(14,26)};
+    if(b==='forest')return k<.5?{kind:'spire',vr:rr(18,30)}:{kind:'rock',vr:rr(14,28)};
+    if(b==='snow')return k<.6?{kind:'ice',vr:rr(14,26)}:{kind:'rock',vr:rr(12,22)};
+    if(b==='desert')return k<.25?{kind:'crater',vr:rr(30,60),cr:0}:k<.55?{kind:'spire',vr:rr(14,22)}:{kind:'rock',vr:rr(12,24)};
+    return {kind:'rock',vr:rr(12,24)}}
   if(MOON){if(b==='swamp')return k<.6?{kind:'mcrystal',vr:rr(14,26)}:{kind:'rock',vr:rr(12,22)};
     if(b==='desert')return k<.55?{kind:'crater',vr:rr(30,70),cr:0}:{kind:'rock',vr:rr(12,24)};
     if(b==='snow')return k<.5?{kind:'crater',vr:rr(40,90),cr:0}:{kind:'rock',vr:rr(18,34)};
@@ -296,7 +310,7 @@ function pickObs(b,k){
   return k<.6?{kind:'palm',vr:rr(20,28),cr:9}:{kind:'rock',vr:rr(10,18)};
 }
 (function genWorld(){
-  if(!MOON)for(let i=0,n=0;i<200&&n<13;i++){const a=rr(0,TAU),d=rr(800,WR-450),x=Math.cos(a)*d,y=Math.sin(a)*d,b=biomeAt(x,y),r=rr(110,210);
+  if(!SPACE)for(let i=0,n=0;i<200&&n<13;i++){const a=rr(0,TAU),d=rr(800,WR-450),x=Math.cos(a)*d,y=Math.sin(a)*d,b=biomeAt(x,y),r=rr(110,210);
     if(b==='desert'||b==='beach'||b==='tech'||zoneBlocked(x,y,r)||Math.hypot(x-TZ.x,y-TZ.y)<TZ.r+r)continue;if(OBS.some(o=>o.kind==='lake'&&Math.hypot(o.x-x,o.y-y)<o.vr+r+120))continue;
     addObs({kind:'lake',x,y,cr:r,vr:r,b,rot:rr(0,TAU)});n++}
   for(let i=0;i<2600;i++){const a=rr(0,TAU),d=Math.sqrt(R())*(WR-60),x=Math.cos(a)*d,y=Math.sin(a)*d,b=biomeAt(x,y);
@@ -327,10 +341,11 @@ function blockedAt(x,y,r){const t={x,y,r};collide(t);return Math.hypot(t.x-x,t.y
 
 // pre-rendered island image for maps
 const MAPPX=300, mapImg=document.createElement('canvas');mapImg.width=mapImg.height=MAPPX;
-(function(){const g=mapImg.getContext('2d'),sc=WR*2/MAPPX,col=MOON?{village:'#6a7180',forest:'#b9bcc4',desert:'#6d717c',swamp:'#5b4f86',snow:'#9a9ea8',beach:'#8a8e98',sea:'#02030a',tech:'#2a1f44'}:{village:'#5b8a52',forest:'#2f5a35',desert:'#c9a368',swamp:'#3e4d3a',snow:'#dfe7f0',beach:'#e0cd96',sea:'#13456b',tech:'#1d2b44'};
+(function(){const g=mapImg.getContext('2d'),sc=WR*2/MAPPX,col=MARS?{village:'#8a5a44',forest:'#9a4a2a',desert:'#c46a3a',swamp:'#3a2420',snow:'#f0dcd4',beach:'#7a4a34',sea:'#02030a',tech:'#3a1a10'}:MOON?{village:'#6a7180',forest:'#b9bcc4',desert:'#6d717c',swamp:'#5b4f86',snow:'#9a9ea8',beach:'#8a8e98',sea:'#02030a',tech:'#2a1f44'}:{village:'#5b8a52',forest:'#2f5a35',desert:'#c9a368',swamp:'#3e4d3a',snow:'#dfe7f0',beach:'#e0cd96',sea:'#13456b',tech:'#1d2b44'};
   const id=g.createImageData(MAPPX,MAPPX);
   for(let py=0;py<MAPPX;py++)for(let px=0;px<MAPPX;px++){const c=col[biomeAt(px*sc-WR,py*sc-WR)],i=(py*MAPPX+px)*4;id.data[i]=parseInt(c.slice(1,3),16);id.data[i+1]=parseInt(c.slice(3,5),16);id.data[i+2]=parseInt(c.slice(5,7),16);id.data[i+3]=255}
   g.putImageData(id,0,0);
+  for(const o of OBS)if(o.kind==='lava'){g.fillStyle='#ff5a1a';g.beginPath();g.arc((o.x+WR)/sc,(o.y+WR)/sc,o.vr/sc,0,TAU);g.fill()}
   for(const o of OBS)if(o.kind==='lake'){g.fillStyle='#2a6f9e';g.beginPath();g.arc((o.x+WR)/sc,(o.y+WR)/sc,o.vr/sc,0,TAU);g.fill()}
 })();
 
@@ -360,9 +375,17 @@ const EN={
   ufo:{hp:45,r:15,spd:110,coin:7,xp:11,col:'#c0c8d8',dmg:12,ai:'drone',draw:'ufo'},
   golem:{hp:160,r:24,spd:80,coin:12,xp:20,col:'#9aa0aa',dmg:24,ai:'charge',draw:'golem'},
   crystalbat:{hp:40,r:13,spd:200,coin:6,xp:10,col:'#b48cff',dmg:13,ai:'hawk',draw:'hawk'},
+  sandworm:{hp:140,r:20,spd:95,coin:10,xp:18,col:'#c46a3a',dmg:22,ai:'charge',draw:'worm'},
+  rover:{hp:90,r:17,spd:150,coin:9,xp:14,col:'#d8d8d8',dmg:16,ai:'chase',draw:'rover'},
+  dustdevil:{hp:60,r:15,spd:210,coin:8,xp:12,col:'#e0a070',dmg:15,ai:'hawk',draw:'devil'},
+  firebeetle:{hp:70,r:15,spd:85,coin:8,xp:12,col:'#a02a10',dmg:14,ai:'spider',draw:'spider'},
+  martian:{hp:65,r:14,spd:175,coin:8,xp:12,col:'#ff5a7a',dmg:16,ai:'chase',draw:'alien'},
+  marsmole:{hp:18,r:10,spd:220,coin:6,xp:4,col:'#b07a5a',passive:1,draw:'rabbit'},
   moonbunny:{hp:14,r:9,spd:230,coin:5,xp:4,col:'#eef0ff',passive:1,draw:'rabbit'},
 };
-const TABLE=MOON?{forest:{h:['alien','alien','golem','crystalbat'],p:['moonbunny']},desert:{h:['alien','ufo','ufo','moonbug'],p:['moonbunny']},swamp:{h:['crystalbat','crystalbat','moonbug','alien'],p:['moonbunny']},
+const TABLE=MARS?{forest:{h:['martian','martian','sandworm','dustdevil'],p:['marsmole']},desert:{h:['sandworm','dustdevil','dustdevil','martian'],p:['marsmole']},swamp:{h:['firebeetle','firebeetle','martian'],p:[]},
+  snow:{h:['martian','rover','dustdevil'],p:['marsmole']},beach:{h:['dustdevil','martian'],p:[]},tech:{h:['rover','rover','mech','laserbot','drone'],p:[]}}
+ :MOON?{forest:{h:['alien','alien','golem','crystalbat'],p:['moonbunny']},desert:{h:['alien','ufo','ufo','moonbug'],p:['moonbunny']},swamp:{h:['crystalbat','crystalbat','moonbug','alien'],p:['moonbunny']},
   snow:{h:['golem','alien','ufo'],p:['moonbunny']},beach:{h:['ufo','alien'],p:[]},tech:{h:['drone','mech','laserbot','robodog','ufo'],p:[]}}
  :{forest:{h:['wolf','wolf','wolf','boar','boar','hawk'],p:['deer','deer','rabbit']},desert:{h:['scorpion','scorpion','scorpion','vulture','vulture'],p:['rabbit']},
   swamp:{h:['spider','spider','frog','frog','frog'],p:['rabbit']},snow:{h:['snowwolf','snowwolf','snowwolf','yeti','hawk'],p:['penguin','penguin']},beach:{h:['crab','crab','crab'],p:['rabbit']},tech:{h:['drone','drone','robodog','robodog','mech','laserbot'],p:[]}};
@@ -378,12 +401,13 @@ const WEAP={
   scatter:{name:'Scatter Cannon',price:250,desc:'5 pellets. Brutal up close.',delay:.42,dmg:7,spd:640,r:4.5,n:5,spread:.55,life:.55,col:'#ffd36b'},
   rail:{name:'Rail Lance',price:500,desc:'Heavy beam that pierces every enemy.',delay:.62,dmg:38,spd:1500,r:4,n:1,spread:0,pierce:true,col:'#d6b8ff'},
   plasma:{name:'Seeker Plasma',price:800,desc:'Glowing orbs that chase targets.',delay:.3,dmg:14,spd:430,r:8,n:1,spread:0,homing:true,col:'#8dff9a'},
+  magma:{name:'Magma Blaster',price:220,cur:'md',world:3,desc:'Lobs molten shells that burst into a fiery explosion.',delay:.5,dmg:55,spd:500,r:9,n:1,spread:0,boom:105,col:'#ff5a1a'},
   sword:{name:'Energy Sword',price:400,desc:'Melee. Slashes everything in front of you and cuts enemy bullets out of the air.',melee:true,delay:.36,dmg:30,range:80,arc:1.9,col:'#7ff6ff'},
   minigun:{name:'Laser Minigun',price:700,desc:'Sprays a stream of fast laser bolts.',delay:.08,dmg:7,spd:900,r:3.5,n:1,spread:0,jit:.09,col:'#ff5a8a'},
   hammer:{name:'Thunder Hammer',price:900,desc:'Melee. Smashes all around you and knocks enemies back.',melee:true,delay:.8,dmg:60,range:105,arc:TAU,col:'#ffe95a'},
   rocket:{name:'Rocket Launcher',price:1200,desc:'Rockets explode on impact and hit a whole area.',delay:.85,dmg:40,spd:520,r:7,n:1,spread:0,boom:85,col:'#ffa040'},
-  katana:{name:'Plasma Katana',price:120,cur:'md',moon:true,desc:'Moon-forged blade. Long reach and very fast.',melee:true,delay:.24,dmg:48,range:98,arc:2.2,col:'#ff5af0'},
-  gravity:{name:'Gravity Cannon',price:160,cur:'md',moon:true,desc:'Black-hole shells pull enemies in and crush them.',delay:.75,dmg:70,spd:450,r:10,n:1,spread:0,boom:120,pull:true,col:'#b48cff'},
+  katana:{name:'Plasma Katana',price:120,cur:'md',world:2,desc:'Moon-forged blade. Long reach and very fast.',melee:true,delay:.24,dmg:48,range:98,arc:2.2,col:'#ff5af0'},
+  gravity:{name:'Gravity Cannon',price:160,cur:'md',world:2,desc:'Black-hole shells pull enemies in and crush them.',delay:.75,dmg:70,spd:450,r:10,n:1,spread:0,boom:120,pull:true,col:'#b48cff'},
 };
 const SKINS={
   cadet:{name:'Cadet',price:0,c:'#3ad6ff',d:'#0e3b55',f:null},
@@ -396,19 +420,20 @@ const SKINS={
   holo:{name:'Hologram',price:1500,c:'#7ff',d:'#123',f:'visor',vis:'#fff',rainbow:true,glow:true},
   astro:{name:'Astronaut',price:80,cur:'md',c:'#f2f4f8',d:'#8a93a6',f:'visor',vis:'#ffc93c'},
   alien:{name:'Little Green',price:100,cur:'md',c:'#7dff6a',d:'#1f6b2a',f:'antenna'},
+  martian:{name:'Martian',price:150,cur:'md',c:'#ff5a7a',d:'#6a0a20',f:'antenna'},
   nova:{name:'Supernova',price:250,cur:'md',c:'#ffe58a',d:'#a04a00',f:'halo',glow:true,trail:'#ff9a3c'},
 };
 
 /* ================= SAVE ================= */
 const KEY='feral-wilds-3d-v1';
-const DEF={coins:0,pts:0,level:1,xp:0,up:{hp:0,dmg:0,rate:0,spd:0,dash:0,regen:0,multi:0},skins:['cadet'],skin:'cadet',weapons:['blaster'],weapon:'blaster',buddy:0,potions:2,muted:false,bosses:{},outposts:{},pos:null,pos2:null,world:1,md:0,abil:['dash',null,null],abilOwned:['dash'],moonVisited:false,lastSector:false,time:20,started:false};
+const DEF={coins:0,pts:0,level:1,xp:0,up:{hp:0,dmg:0,rate:0,spd:0,dash:0,regen:0,multi:0},skins:['cadet'],skin:'cadet',weapons:['blaster'],weapon:'blaster',buddy:0,potions:2,muted:false,bosses:{},outposts:{},pos:null,pos2:null,pos3:null,world:1,md:0,abil:['dash',null,null],abilOwned:['dash'],moonVisited:false,lastSector:false,time:20,started:false};
 function load(){const d=JSON.parse(JSON.stringify(DEF));try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'){Object.assign(d,s);d.up=Object.assign({},DEF.up,s.up||{})}}catch(e){}return d}
 let save=load();
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function stats(){const u=save.up;return{maxHp:100+20*u.hp,dmg:1+.15*u.dmg,rate:Math.pow(.917,u.rate),spd:240*(1+.06*u.spd),dashCd:1.4*Math.pow(.88,u.dash),cdMul:Math.pow(.88,u.dash),regen:.8*u.regen,multi:u.multi}}
 const xpNeed=L=>Math.round(40*Math.pow(L,1.5));
 const bossCount=()=>LAIRS.filter(l=>save.bosses[l.kind]).length;
-const POSKEY=MOON?'pos2':'pos';
+const POSKEY=WORLDS[WORLD_ID].key;
 
 /* ================= AUDIO ================= */
 let AC=null,lastShot=0;
@@ -467,6 +492,8 @@ const CREW_TYPES={
   mech:{name:'Mech',role:'melee',hp:200,dmg:20,cd:1,spd:225},laserbot:{name:'Laser Bot',role:'ranged',hp:80,dmg:11,cd:.8,spd:245,range:320,bcol:'#ff5a8a'},
   alien:{name:'Alien',role:'melee',hp:90,dmg:14,cd:.55,spd:300},golem:{name:'Rock Golem',role:'melee',hp:300,dmg:26,cd:1.2,spd:220},crystalbat:{name:'Crystal Bat',role:'melee',hp:75,dmg:13,cd:.5,spd:330},
   moonbug:{name:'Moon Bug',role:'ranged',hp:80,dmg:10,cd:.8,spd:245,range:270,bcol:'#a99aff'},ufo:{name:'Mini UFO',role:'ranged',hp:75,dmg:12,cd:.7,spd:270,range:330,bcol:'#7dff6a'},
+  sandworm:{name:'Sandworm',role:'melee',hp:260,dmg:24,cd:1.1,spd:240},rover:{name:'Rover',role:'melee',hp:170,dmg:16,cd:.7,spd:280},dustdevil:{name:'Dust Devil',role:'melee',hp:110,dmg:15,cd:.5,spd:330},
+  firebeetle:{name:'Fire Beetle',role:'ranged',hp:110,dmg:13,cd:.8,spd:245,range:280,bcol:'#ff7a2a'},martian:{name:'Martian',role:'melee',hp:130,dmg:17,cd:.55,spd:300},marsmole:{name:'Mars Mole',role:'healer',hp:90,dmg:7,cd:1.1,spd:300,range:220,heal:13,bcol:'#ffd0a0'},
   moonbunny:{name:'Moon Bunny',role:'healer',hp:70,dmg:6,cd:1.1,spd:300,range:220,heal:10,bcol:'#ffffff'},
   deer:{name:'Deer',role:'healer',hp:80,dmg:5,cd:1.2,spd:280,range:200,heal:7,bcol:'#c9f7a0'},penguin:{name:'Penguin',role:'healer',hp:65,dmg:5,cd:1.2,spd:230,range:200,heal:6,bcol:'#bfe6ff'},
 };
@@ -549,9 +576,10 @@ function syncUI(){const play=state==='play';$('touch').hidden=!(touchMode&&play)
 
 $('startBtn').onclick=()=>{unlockAudio();save.started=true;persist();$('title').hidden=true;state='play';syncUI();last=performance.now();
   if(!save[POSKEY])banner('Home Village','Head out and explore. The gold arrow points to the nearest boss lair.',3200,'#9be15d')};
-if(save.started)$('startBtn').textContent=MOON?'Continue on the Moon':'Continue adventure';
+if(save.started)$('startBtn').textContent=MARS?'Continue on Mars':MOON?'Continue on the Moon':'Continue adventure';
+if(MARS){$('mapTitle').textContent='Mars map';document.querySelector('#title .tag').textContent='World 3: Mars. Red dunes, lava fields and a polar ice cap. Sandworms, martians and four new bosses rule the red planet.'}
 if(MOON){$('mapTitle').textContent='Moon map';document.querySelector('#title .tag').textContent='World 2: The Moon. Aliens, UFOs, rock golems and a lunar tech sector. Four new bosses wait in the dust.'}
-try{if(sessionStorage.getItem('fw3d-launch')){sessionStorage.removeItem('fw3d-launch');setTimeout(()=>{$('startBtn').click();banner(MOON?'THE MOON':'HOME ISLAND',MOON?'World 2 · low gravity makes your dash go further':'World 1 · welcome back',3000,MOON?'#b48cff':'#9be15d')},60)}}catch(e){}
+try{if(sessionStorage.getItem('fw3d-launch')){sessionStorage.removeItem('fw3d-launch');setTimeout(()=>{$('startBtn').click();banner(MARS?'MARS':MOON?'THE MOON':'HOME ISLAND',MARS?'World 3 · watch out for lava pools':MOON?'World 2 · low gravity makes your dash go further':'World 1 · welcome back',3000,MARS?'#ff7a2a':MOON?'#b48cff':'#9be15d')},60)}}catch(e){}
 
 /* ================= HELPERS ================= */
 function banner(t,s,ms,col){const b=$('banner');$('bnT').textContent=t;$('bnS').textContent=s||'';b.style.setProperty('--bcol',col||'#37e2ff');b.classList.add('show');clearTimeout(banner.h);banner.h=setTimeout(()=>b.classList.remove('show'),ms)}
@@ -613,7 +641,7 @@ function updateAbilities(dt){const p=G.p;
     G.booms.push({x:m.x,y:m.y,r:R0,t:0,col:'#ff7a2a'});burst(m.x,m.y,40,'#ff9a3c',380,6);G.shake=Math.max(G.shake,14);sfx.boom()}}
   G.meteors=G.meteors.filter(m=>!m.done);
   // slot unlocks
-  if(MOON&&!save.moonVisited){save.moonVisited=true;persist();buildAbar();setTimeout(()=>toast('Ability slot 2 unlocked! Equip a second ability in Menu → Abilities.'),3500)}
+  if(SPACE&&!save.moonVisited){save.moonVisited=true;persist();buildAbar();setTimeout(()=>toast('Ability slot 2 unlocked! Equip a second ability in Menu → Abilities.'),3500)}
   if(MOON&&!save.lastSector){const L=LAIRS.find(l=>l.sealed);if(L&&bossCount()>=L.need&&Math.hypot(p.x-L.x,p.y-L.y)<L.R+260){save.lastSector=true;persist();buildAbar();banner('SLOT 3 UNLOCKED','You reached the last sector. Equip a third ability.',2600,'#ffc93c')}}
 }
 
@@ -633,7 +661,7 @@ function trySpawn(passive){const p=G.p,night=isNight();
     const list=passive?TABLE[b].p:TABLE[b].h;if(!list.length)return;const kind=pick(list);
     const n=!passive&&(kind==='wolf'||kind==='snowwolf')&&Math.random()<.6?2+(night?1:0):1;
     for(let i=0;i<n;i++)spawnEnemy(kind,x+rnd(-40,40),y+rnd(-40,40));return}}
-function spawnOutpost(o){o.spawned=true;const n=2+Math.floor((o.lvl-(MOON?7:0))/2);const spots=[];
+function spawnOutpost(o){o.spawned=true;const n=2+Math.floor((o.lvl-LVOFF)/2);const spots=[];
   for(const[dx,dy]of[[-.33,-.3],[.33,-.3],[-.33,.3],[.33,.3]])spawnEnemy('turret',o.x+dx*o.w,o.y+dy*o.h,{lvl:o.lvl,op:o.id+1});
   for(let i=0;i<n;i++){spawnEnemy('drone',o.x+rnd(-150,150),o.y+rnd(-100,100),{lvl:o.lvl,op:o.id+1});spawnEnemy('robodog',o.x+rnd(-180,180),o.y+rnd(-120,120),{lvl:o.lvl,op:o.id+1})}}
 
@@ -662,7 +690,7 @@ function updatePlayer(dt){const p=G.p;let mx=0,my=0;
   if(joy.id!==null){const dx=joy.x-joy.ox,dy=joy.y-joy.oy,l=Math.hypot(dx,dy);if(l>6){const k=Math.min(1,l/55);mx=dx/l*k;my=dy/l*k}}
   const l=Math.hypot(mx,my);if(l>1){mx/=l;my/=l}if(l>.1){p.dx=mx/Math.min(1,l);p.dy=my/Math.min(1,l)}
   let spd=G.st.spd*(p.slowT>0?.55:1)*(G.odT>0?1.3:1);
-  if(p.dashT>0){p.dashT-=dt;spd=G.st.spd*(MOON?4.2:3.2);const dl=Math.hypot(p.dx,p.dy)||1;mx=p.dx/dl;my=p.dy/dl}
+  if(p.dashT>0){p.dashT-=dt;spd=G.st.spd*(SPACE?4.2:3.2);const dl=Math.hypot(p.dx,p.dy)||1;mx=p.dx/dl;my=p.dy/dl}
   p.x+=mx*spd*dt;p.y+=my*spd*dt;collide(p);arenaClamp(p);
   p.dashCd=Math.max(0,p.dashCd-dt);p.inv=Math.max(0,p.inv-dt);p.slowT=Math.max(0,p.slowT-dt);p.fireT-=dt;
   const inVillage=Math.hypot(p.x,p.y)<VILLAGE;
@@ -788,8 +816,8 @@ function startFight(L){
 function endFight(){G.fight=null;$('bossbar').hidden=true;G.beams=[];G.tele=[];G.ens=G.ens.filter(e=>!e.boss&&!e.fm)}
 
 /* ================= MAIN UPDATE ================= */
-function isNight(){if(MOON)return false;const ph=(save.time/300)%1;return ph>.38&&ph<.88}
-function darkness(){if(MOON)return 0;const ph=(save.time/300)%1,v=(1-Math.cos((ph-.13)*TAU))/2;return clamp((v-.3)/.7,0,1)*.72}
+function isNight(){if(SPACE)return false;const ph=(save.time/300)%1;return ph>.38&&ph<.88}
+function darkness(){if(SPACE)return 0;const ph=(save.time/300)%1,v=(1-Math.cos((ph-.13)*TAU))/2;return clamp((v-.3)/.7,0,1)*.72}
 function update(dt){
   const p=G.p;G.t+=dt;save.time+=dt;
   updatePlayer(dt);updateCrew(dt);
@@ -809,7 +837,8 @@ function update(dt){
       const ph=(G.t)%4.4;o.lz=ph<2.3?0:ph<3.1?1:2;
       if(o.left>0&&o.lz===2&&Math.abs(p.x-o.x)<o.w/2&&Math.abs(p.y-o.y)<o.h/2){if(Math.abs(p.y-(o.y-o.h*.12))<p.r+5||Math.abs(p.x-(o.x+o.w*.12))<p.r+5)hurt(12*(1+.08*(o.lvl-1)))}
       if(o.left===0&&Math.hypot(p.x-o.x,p.y-o.y)<p.r+26){save.outposts[o.id]=true;const c=60+40*o.lvl;for(let i=0;i<14;i++){const a=Math.random()*TAU;G.coins.push({x:o.x,y:o.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,v:Math.round(c/14),t:0})}
-        save.pts+=2;if(MOON){save.md+=30;setTimeout(()=>toast('+30 Moon Dollars from the vault'),1200)}gainXp(40*o.lvl);persist();sfx.up();burst(o.x,o.y,50,'#37e2ff',320,5);banner('VAULT CRACKED','+2 upgrade points · +'+c+' coins',2200,'#37e2ff')}}}
+        save.pts+=2;if(SPACE){const v=MARS?50:30;save.md+=v;setTimeout(()=>toast('+'+v+' Moon Dollars from the vault'),1200)}gainXp(40*o.lvl);persist();sfx.up();burst(o.x,o.y,50,'#37e2ff',320,5);banner('VAULT CRACKED','+2 upgrade points · +'+c+' coins',2200,'#37e2ff')}}}
+  if(MARS){const gx=Math.floor(p.x/CH),gy=Math.floor(p.y/CH),arr=grid.get(gx+','+gy);if(arr)for(const o of arr)if(o.kind==='lava'&&Math.hypot(p.x-o.x,p.y-o.y)<o.vr*.85){hurt(10*curDmul());break}}
   updateAbilities(dt);const frozen=G.freezeT>0;
   if(!frozen)for(const e of G.ens)updateEnemy(e,dt);
   for(let i=0;i<G.ens.length;i++)for(let j=i+1;j<G.ens.length;j++){const a=G.ens[i],c=G.ens[j],dx=c.x-a.x,dy=c.y-a.y;if(Math.abs(dx)>60||Math.abs(dy)>60)continue;const d=Math.hypot(dx,dy),m=a.r+c.r;
@@ -853,14 +882,14 @@ function update(dt){
 }
 function kill(e,own){if(own){own.m.kills=(own.m.kills||0)+1;const lv=crewLevel(own.m);if(lv!==own.st.lv){buildCrew();toast(own.m.name+' reached crew level '+lv+'!')}}
   sfx.kill();burst(e.x,e.y,e.boss?80:14,e.col,e.boss?420:200,e.boss?8:5);
-  if(MOON&&(!e.passive||Math.random()<.5)){const mv=e.boss?40+15*bossCount():Math.max(1,Math.round(e.coin/4)),mn=e.boss?10:1;for(let i=0;i<mn;i++){const a=Math.random()*TAU,sp=rnd(60,e.boss?320:140);G.coins.push({x:e.x,y:e.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,v:Math.max(1,Math.round(mv/mn)),t:0,md:true})}}
+  if(SPACE&&(!e.passive||Math.random()<.5)){const mv=Math.round((e.boss?40+15*bossCount():Math.max(1,Math.round(e.coin/4)))*(MARS?1.5:1)),mn=e.boss?10:1;for(let i=0;i<mn;i++){const a=Math.random()*TAU,sp=rnd(60,e.boss?320:140);G.coins.push({x:e.x,y:e.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,v:Math.max(1,Math.round(mv/mn)),t:0,md:true})}}
   const night=isNight()?1.25:1,total=Math.max(1,Math.round(e.coin*night*(own&&own.tr.lucky?1.6:1))),n=e.boss?24:Math.min(5,total);
   for(let i=0;i<n;i++){const a=Math.random()*TAU,s=rnd(60,e.boss?380:160);G.coins.push({x:e.x,y:e.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,v:Math.max(1,Math.round(total/n)),t:0})}
   gainXp(e.xp);if(!e.boss)tryRecruit(e,own);
   if(e.boss){const L=G.fight.l,bd=BOSS[e.kind],pts=L.sealed?10:5;save.bosses[e.kind]=true;save.pts+=pts;persist();
     G.slow=1.4;G.shake=20;G.eb=[];for(const m of G.ens)if(m.fm){m.hp=0;burst(m.x,m.y,10,m.col,150,4)}endFight();sfx.boom();
     const c=bossCount();
-    if(c===LAIRS.length)setTimeout(()=>banner(MOON?'MOON CONQUERED':'ISLAND CONQUERED',`All ${LAIRS.length} bosses defeated. Keep exploring!`,4200,'#ffc93c'),1500);
+    if(c===LAIRS.length)setTimeout(()=>banner(MARS?'MARS CONQUERED':MOON?'MOON CONQUERED':'ISLAND CONQUERED',`All ${LAIRS.length} bosses defeated. Keep exploring!`,4200,'#ffc93c'),1500);
     else banner(bd.name+' DOWN',`+${pts} upgrade points · fast travel unlocked · ${c}/${LAIRS.length} bosses`,2600,'#ffc93c');
     {const fin=LAIRS.find(l=>l.sealed);if(fin&&c===fin.need&&!save.bosses[fin.kind])setTimeout(()=>banner(BOSS[fin.kind].name+' AWAKENS','Its barrier has broken',2600,'#ff5af0'),2800)}}
 }
@@ -880,19 +909,20 @@ function resume(){state='play';$('modal').hidden=true;syncUI();last=performance.
 $('modal').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;const m=b.dataset.m;
   if(m==='resume')resume();else if(m==='respawn')respawn();
   else if(m==='upg'){$('modal').hidden=true;openPanel('upgrades')}
-  else if(m==='launch')launch();
+  else if(m==='launch')launch(+b.dataset.w);
   else if(m==='crew'){$('modal').hidden=true;openPanel('crew')}
   else if(m==='map'){$('modal').hidden=true;state='play';openMap()}
   else if(m==='sound'){save.muted=!save.muted;persist();if(!save.muted)unlockAudio();b.textContent='Sound: '+(save.muted?'off':'on')}});
 function interact(){if(state!=='play'||!G.near)return;if(G.near.id==='rocket')openRocket();else openPanel(G.near.id)}
-function openRocket(){state='paused';syncUI();const can=MOON||bossCount()>=1;
-  showModal(MOON?`<h2>Fly home?</h2><p>Return to World 1, the island. Your crew, coins, weapons and upgrades come with you.</p><div class="row"><button class="btn w" data-m="launch">Launch</button><button class="btn ghost" data-m="resume">Stay</button></div>`
-   :can?`<h2>World 2: The Moon</h2><p>Aliens, UFOs and rock golems. Enemies start around level 8, and the Moon Shop sells weapons you can't get anywhere else. Low gravity makes your dash go further.</p><div class="row"><button class="btn w" data-m="launch">Launch</button><button class="btn ghost" data-m="resume">Not yet</button></div>`
-   :`<h2>Rocket not fueled</h2><p>Beat any boss on the island to fuel the rocket to the Moon.</p><div class="row"><button class="btn" data-m="resume">OK</button></div>`)}
-function launch(){save[POSKEY]={x:0,y:-270};save.world=MOON?1:2;const nk=MOON?'pos':'pos2';if(!save[nk])save[nk]={x:0,y:-270};persist();
+const worldOpen=w=>w===1||WORLD_BOSSES[w-1].some(k=>save.bosses[k]);
+const WINFO={1:{blurb:'Forests, deserts, swamps, snow and the Neon District.'},2:{blurb:'Aliens, UFOs and rock golems. Enemies around level 8. Moon Shop weapons.',lock:'Beat any boss on the island to fuel the rocket.'},3:{blurb:'Sandworms, martians, lava pools. Enemies around level 15. Hardest world.',lock:'Beat any boss on the Moon to unlock Mars.'}};
+function openRocket(){state='paused';syncUI();let h=`<h2>Rocket</h2><p>You are on ${WORLDS[WORLD_ID].name}. Your crew, coins, weapons and upgrades come with you.</p><div style="display:flex;flex-direction:column;gap:8px;text-align:left">`;
+  for(const w of[1,2,3]){if(w===WORLD_ID)continue;const ok=worldOpen(w);h+=`<div class="card" style="padding:12px"><div class="kicker"><span>${WORLDS[w].name}</span>${ok?'':'<span>Locked</span>'}</div><p>${ok?WINFO[w].blurb:WINFO[w].lock}</p>${ok?`<div class="row"><button class="btn w" data-m="launch" data-w="${w}">Fly here</button></div>`:''}</div>`}
+  showModal(h+`</div><div class="row"><button class="btn ghost" data-m="resume">Stay</button></div>`)}
+function launch(w){if(!w||w===WORLD_ID||!worldOpen(w))return;save[POSKEY]={x:0,y:-270};save.world=w;const nk=WORLDS[w].key;if(!save[nk])save[nk]={x:0,y:-270};persist();
   try{sessionStorage.setItem('fw3d-launch','1')}catch(e){}
-  showModal(`<h2>${MOON?'Flying home…':'Launching…'}</h2><p>${MOON?'Next stop: the island.':'Next stop: the Moon.'}</p>`);sfx.boom();
-  setTimeout(()=>{location.hash=MOON?'home':'moon';location.reload()},900)}
+  showModal(`<h2>Launching…</h2><p>Next stop: ${WORLDS[w].name}.</p>`);sfx.boom();
+  setTimeout(()=>{location.hash=WORLDS[w].hash;location.reload()},900)}
 
 /* ================= PANEL (upgrades/shop) ================= */
 let tab='upgrades';
@@ -909,7 +939,7 @@ const price=n=>`<span class="price"><span class="coin"></span>${n}</span>`;
 function renderPanel(){
   const shopOk=inVillage();if(tab==='shop'&&!shopOk)tab='upgrades';
   $('wCoins').textContent=save.coins;$('wMd').textContent=save.md;$('wPts').textContent=save.pts;$('muteBtn').textContent='Sound: '+(save.muted?'off':'on');
-  $('panelTitle').textContent=tab==='shop'?(MOON?'Moon Shop':'Village Shop'):tab==='crew'?'Your Crew':tab==='abil'?'Abilities':'Upgrade Lab';
+  $('panelTitle').textContent=tab==='shop'?(MARS?'Colony Shop':MOON?'Moon Shop':'Village Shop'):tab==='crew'?'Your Crew':tab==='abil'?'Abilities':'Upgrade Lab';
   document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('on',b.dataset.tab===tab);if(b.dataset.tab==='shop'){b.disabled=!shopOk;b.title=shopOk?'':'Go to the Home Village to shop'}});
   let h='';
   if(tab==='upgrades'){
@@ -948,8 +978,8 @@ function renderPanel(){
     for(const id in SKINS){const s=SKINS[id],own=save.skins.includes(id),on=save.skin===id;
       h+=`<div class="card ${on?'sel':''}"><canvas class="prev" data-skin="${id}" width="144" height="144"></canvas><h4 style="text-align:center">${s.name}</h4><div class="row" style="justify-content:center">${on?'<span class="done">EQUIPPED</span>':own?`<button class="btn ghost" data-act="skin" data-id="${id}">Equip</button>`:`<button class="btn g" data-act="buyskin" data-id="${id}" ${canPay(s)?'':'disabled'}>Buy</button>${priceOf(s)}`}</div></div>`}
     h+=`</div><h3>Weapons</h3><div class="grid">`;
-    for(const id in WEAP){const w=WEAP[id],own=save.weapons.includes(id),on=save.weapon===id,locked=w.moon&&!MOON&&!own;
-      h+=`<div class="card ${on?'sel':''}"><div class="kicker"><span>${w.melee?'Melee':w.boom?'Explosive':'Gun'}${w.moon?' · Moon':''}</span><span style="color:${w.col}">${Math.round(w.dmg*(w.n||1))} dmg · ${(1/w.delay).toFixed(1)}/s</span></div><h4>${w.name}</h4><p>${w.desc}</p><div class="row">${on?'<span class="done">EQUIPPED</span>':own?`<button class="btn ghost" data-act="weap" data-id="${id}">Equip</button>`:locked?'<span class="lbl">Sold at the Moon Base</span>':`<button class="btn g" data-act="buyweap" data-id="${id}" ${canPay(w)?'':'disabled'}>Buy</button>${priceOf(w)}`}</div></div>`}
+    for(const id in WEAP){const w=WEAP[id],own=save.weapons.includes(id),on=save.weapon===id,locked=w.world&&w.world!==WORLD_ID&&!own;
+      h+=`<div class="card ${on?'sel':''}"><div class="kicker"><span>${w.melee?'Melee':w.boom?'Explosive':'Gun'}${w.world===2?' · Moon':w.world===3?' · Mars':''}</span><span style="color:${w.col}">${Math.round(w.dmg*(w.n||1))} dmg · ${(1/w.delay).toFixed(1)}/s</span></div><h4>${w.name}</h4><p>${w.desc}</p><div class="row">${on?'<span class="done">EQUIPPED</span>':own?`<button class="btn ghost" data-act="weap" data-id="${id}">Equip</button>`:locked?`<span class="lbl">Sold ${w.world===3?'on Mars':'at the Moon Base'}</span>`:`<button class="btn g" data-act="buyweap" data-id="${id}" ${canPay(w)?'':'disabled'}>Buy</button>${priceOf(w)}`}</div></div>`}
     const bc=300+300*save.buddy;
     h+=`</div><h3>Gear</h3><div class="grid">
       <div class="card"><div class="kicker"><span>Companion</span><span>Lv ${save.buddy}/5</span></div><h4>Buddy Drone</h4><p>Orbits you and shoots nearby enemies. Each level shoots faster and harder.</p>
@@ -983,9 +1013,9 @@ $('closeMap').onclick=closeMap;
 function drawMapLayer(g,size,cx,cy,scale,big){
   // cx,cy: world center to show; scale: px per world unit
   const toX=x=>size/2+(x-cx)*scale,toY=y=>size/2+(y-cy)*scale;
-  g.fillStyle=MOON?'#02030a':'#13456b';g.fillRect(0,0,size,size);
+  g.fillStyle=SPACE?'#02030a':'#13456b';g.fillRect(0,0,size,size);
   const k=WR*2/MAPPX*scale;g.imageSmoothingEnabled=true;g.drawImage(mapImg,toX(-WR),toY(-WR),MAPPX*k,MAPPX*k);
-  g.fillStyle=MOON?'#8a93a6':'#d9c79a';g.beginPath();g.arc(toX(0),toY(0),VILLAGE*scale,0,TAU);g.fill();
+  g.fillStyle=MARS?'#b07a5a':MOON?'#8a93a6':'#d9c79a';g.beginPath();g.arc(toX(0),toY(0),VILLAGE*scale,0,TAU);g.fill();
   const u=big?1:.6;
   for(const o of OUTPOSTS){g.fillStyle=save.outposts[o.id]?'#4c6b80':'#37e2ff';g.fillRect(toX(o.x)-9*u,toY(o.y)-9*u,18*u,18*u);if(save.outposts[o.id]){g.strokeStyle='#9be15d';g.lineWidth=3*u;g.beginPath();g.moveTo(toX(o.x)-5*u,toY(o.y));g.lineTo(toX(o.x)-1*u,toY(o.y)+4*u);g.lineTo(toX(o.x)+6*u,toY(o.y)-5*u);g.stroke()}}
   for(const L of LAIRS){const done=save.bosses[L.kind],sealed=L.sealed&&bossCount()<L.need,x=toX(L.x),y=toY(L.y);
@@ -1019,7 +1049,7 @@ addEventListener('resize',resize3d);resize3d();
 
 const SKY_DAY=new THREE.Color(0x9fd0f0),SKY_NIGHT=new THREE.Color(0x0a0f2a),skyC=new THREE.Color();
 scene.background=skyC;scene.fog=new THREE.Fog(0x9fd0f0,1500,3400);
-const hemi=new THREE.HemisphereLight(MOON?0xc8d4ff:0xe6f2ff,MOON?0x1a1a24:0x3a4a2a,.8);scene.add(hemi);
+const hemi=new THREE.HemisphereLight(MARS?0xffc8a0:MOON?0xc8d4ff:0xe6f2ff,MARS?0x3a1a10:MOON?0x1a1a24:0x3a4a2a,.8);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xfff0d8,.9);sun.castShadow=true;sun.shadow.mapSize.set(MOBILE?1024:2048,MOBILE?1024:2048);
 Object.assign(sun.shadow.camera,{left:-760,right:760,top:760,bottom:-760,near:10,far:2600});sun.shadow.bias=-.0006;scene.add(sun);scene.add(sun.target);
 const lantern=new THREE.PointLight(0xffd59a,0,560,1.4);scene.add(lantern);
@@ -1035,34 +1065,35 @@ const dummy=new THREE.Object3D(),tmpC=new THREE.Color(),colCache=new Map();
 const colorOf=s=>{let c=colCache.get(s);if(!c){c=new THREE.Color(s.length>7?s.slice(0,7):s);colCache.set(s,c)}return c};
 
 /* ----- terrain ----- */
-const BCOL=MOON?{village:0x6a7180,forest:0x9a9ea8,desert:0x5c606a,swamp:0x4e4374,snow:0x83878f,beach:0x737780,sea:0x0a0b12,tech:0x1a1630}:{village:0x4f7a46,forest:0x2a5232,desert:0xc79e60,swamp:0x34452f,snow:0xe2e9f2,beach:0xdcc690,sea:0x1b5a85,tech:0x161f30};
+const BCOL=MARS?{village:0x8a5a44,forest:0x8a3f22,desert:0xb35f32,swamp:0x2e1c18,snow:0xeedad2,beach:0x6a3e2c,sea:0x0a0505,tech:0x2a120a}:MOON?{village:0x6a7180,forest:0x9a9ea8,desert:0x5c606a,swamp:0x4e4374,snow:0x83878f,beach:0x737780,sea:0x0a0b12,tech:0x1a1630}:{village:0x4f7a46,forest:0x2a5232,desert:0xc79e60,swamp:0x34452f,snow:0xe2e9f2,beach:0xdcc690,sea:0x1b5a85,tech:0x161f30};
 (function(){
   const gg=new THREE.PlaneGeometry(6800,6800,200,200);gg.rotateX(-Math.PI/2);
   const pos=gg.attributes.position,cols=new Float32Array(pos.count*3),c=new THREE.Color();
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),b=biomeAt(x,z),d=Math.hypot(x,z);c.setHex(BCOL[b]);
     c.offsetHSL(0,0,(Math.sin(x*.013)*Math.cos(z*.011)+Math.sin(x*.003+z*.004))*.035);
     cols[i*3]=c.r;cols[i*3+1]=c.g;cols[i*3+2]=c.b;
-    let y=d>WR?-Math.min(70,(d-WR)*.3):0;if(b==='snow'&&!MOON)y-=Math.max(0,Math.sin(x*.004)*Math.cos(z*.005))*6;if(MOON&&d<WR)y-=Math.abs(Math.sin(x*.009)*Math.cos(z*.011))*5;pos.setY(i,y)}
+    let y=d>WR?-Math.min(70,(d-WR)*.3):0;if(b==='snow'&&!MOON)y-=Math.max(0,Math.sin(x*.004)*Math.cos(z*.005))*6;if(SPACE&&d<WR)y-=Math.abs(Math.sin(x*.009)*Math.cos(z*.011))*5;pos.setY(i,y)}
   gg.setAttribute('color',new THREE.BufferAttribute(cols,3));gg.computeVertexNormals();
   const ground=new THREE.Mesh(gg,lam(0xffffff,{vertexColors:true}));ground.receiveShadow=true;scene.add(ground);
-  const sea=new THREE.Mesh(new THREE.PlaneGeometry(24000,24000).rotateX(-Math.PI/2),MOON?bas(0x02030a,{fog:false}):lam(0x1d6496));sea.position.y=-6;scene.add(sea);
-  const foam=new THREE.Mesh(new THREE.RingGeometry(WR+10,WR+36,128).rotateX(-Math.PI/2),bas(MOON?0x6aa8ff:0xe8f6ff,{transparent:true,opacity:MOON?.25:.5}));foam.position.y=-5;scene.add(foam);
-  if(MOON){const n=3500,pa=new Float32Array(n*3);for(let i=0;i<n;i++){const a=Math.random()*TAU,d=WR+250+Math.random()*7000;pa[i*3]=Math.cos(a)*d;pa[i*3+1]=-40-Math.random()*400;pa[i*3+2]=Math.sin(a)*d}
+  const sea=new THREE.Mesh(new THREE.PlaneGeometry(24000,24000).rotateX(-Math.PI/2),SPACE?bas(0x02030a,{fog:false}):lam(0x1d6496));sea.position.y=-6;scene.add(sea);
+  const foam=new THREE.Mesh(new THREE.RingGeometry(WR+10,WR+36,128).rotateX(-Math.PI/2),bas(MARS?0xff7a2a:MOON?0x6aa8ff:0xe8f6ff,{transparent:true,opacity:SPACE?.25:.5}));foam.position.y=-5;scene.add(foam);
+  if(SPACE){const n=3500,pa=new Float32Array(n*3);for(let i=0;i<n;i++){const a=Math.random()*TAU,d=WR+250+Math.random()*7000;pa[i*3]=Math.cos(a)*d;pa[i*3+1]=-40-Math.random()*400;pa[i*3+2]=Math.sin(a)*d}
     const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pa,3));scene.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0xffffff,size:2,sizeAttenuation:false,fog:false})));
-    const earth=new THREE.Mesh(SPH,lam(0x2a6fd6,{emissive:0x0a2a60,fog:false}));earth.position.set(WR+1600,-700,-WR-600);earth.scale.setScalar(650);scene.add(earth);
+    if(MARS){const ph=new THREE.Mesh(SPH,lam(0x8a7a6a,{fog:false}));ph.position.set(-WR-1400,-600,-WR-400);ph.scale.setScalar(240);scene.add(ph);const dm=new THREE.Mesh(SPH,lam(0x9a8a7a,{fog:false}));dm.position.set(WR+1800,-800,WR+600);dm.scale.setScalar(150);scene.add(dm)}
+    if(MOON){const earth=new THREE.Mesh(SPH,lam(0x2a6fd6,{emissive:0x0a2a60,fog:false}));earth.position.set(WR+1600,-700,-WR-600);earth.scale.setScalar(650);scene.add(earth);
     for(let i=0;i<7;i++){const c=new THREE.Mesh(SPH,lam(0x3f9a4a,{emissive:0x0a2a10,fog:false}));const a=i*.9,b=i*1.7;c.position.set(earth.position.x+Math.cos(a)*Math.cos(b)*560,earth.position.y+Math.sin(b)*560+120,earth.position.z+Math.sin(a)*Math.cos(b)*560);c.scale.set(200,90,160);scene.add(c)}
-    const atm=new THREE.Mesh(SPH,bas(0x9fd0ff,{transparent:true,opacity:.18,fog:false}));atm.position.copy(earth.position);atm.scale.setScalar(700);scene.add(atm)}
+    const atm=new THREE.Mesh(SPH,bas(0x9fd0ff,{transparent:true,opacity:.18,fog:false}));atm.position.copy(earth.position);atm.scale.setScalar(700);scene.add(atm)}}
   // village plaza
-  const plaza=new THREE.Mesh(new THREE.CircleGeometry(VILLAGE-60,72).rotateX(-Math.PI/2),lam(MOON?0x7a8396:0xbcae8c));plaza.position.y=.6;plaza.receiveShadow=true;scene.add(plaza);
+  const plaza=new THREE.Mesh(new THREE.CircleGeometry(VILLAGE-60,72).rotateX(-Math.PI/2),lam(MARS?0x9a6a54:MOON?0x7a8396:0xbcae8c));plaza.position.y=.6;plaza.receiveShadow=true;scene.add(plaza);
   for(let r=70;r<VILLAGE-60;r+=60){const m=new THREE.Mesh(new THREE.RingGeometry(r,r+3,72).rotateX(-Math.PI/2),lam(0xa3967a));m.position.y=.8;scene.add(m)}
   const edge=new THREE.Mesh(new THREE.RingGeometry(VILLAGE-3,VILLAGE+3,96).rotateX(-Math.PI/2),bas(0x9be15d,{transparent:true,opacity:.45}));edge.position.y=.9;scene.add(edge);
 })();
 
-(function(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),col=MOON?'#ff5af0':'#37e2ff';g.fillStyle=MOON?'#140f26':'#0b1322';g.fillRect(0,0,128,128);
+(function(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),col=MARS?'#ff7a2a':MOON?'#ff5af0':'#37e2ff';g.fillStyle=MARS?'#1e0d08':MOON?'#140f26':'#0b1322';g.fillRect(0,0,128,128);
   g.strokeStyle=col;g.globalAlpha=.6;g.lineWidth=3;g.strokeRect(0,0,128,128);g.globalAlpha=.22;g.lineWidth=1;g.beginPath();g.moveTo(64,0);g.lineTo(64,128);g.moveTo(0,64);g.lineTo(128,64);g.stroke();
   const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(TZ.r*2/90,TZ.r*2/90);
   const m=new THREE.Mesh(new THREE.CircleGeometry(TZ.r+30,80).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({map:tex,emissive:0xffffff,emissiveMap:tex,emissiveIntensity:.4}));m.position.set(TZ.x,.45,TZ.y);m.receiveShadow=true;scene.add(m);
-  const ring=new THREE.Mesh(new THREE.RingGeometry(TZ.r+26,TZ.r+36,120).rotateX(-Math.PI/2),bas(MOON?0xff5af0:0x37e2ff));ring.position.set(TZ.x,.7,TZ.y);scene.add(ring)})();
+  const ring=new THREE.Mesh(new THREE.RingGeometry(TZ.r+26,TZ.r+36,120).rotateX(-Math.PI/2),bas(MARS?0xff7a2a:MOON?0xff5af0:0x37e2ff));ring.position.set(TZ.x,.7,TZ.y);scene.add(ring)})();
 /* ----- static obstacles (instanced) ----- */
 function inst(geo,mat,list,fn,colFn,shadow){if(!list.length)return;const m=new THREE.InstancedMesh(geo,mat,list.length);
   list.forEach((o,i)=>{dummy.position.set(0,0,0);dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);fn(o,dummy);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);if(colFn){colFn(o,tmpC);m.setColorAt(i,tmpC)}});
@@ -1082,13 +1113,17 @@ function inst(geo,mat,list,fn,colFn,shadow){if(!list.length)return;const m=new T
   inst(CYL,lam(0x3f8a4a),L('cactus'),(o,d)=>{d.position.set(o.x,0,o.y);d.scale.set(o.vr*.55,o.vr*3,o.vr*.55)});
   inst(CYL,lam(0x3f8a4a),L('cactus'),(o,d)=>{d.position.set(o.x+Math.cos(o.rot)*o.vr*.7,o.vr*1.1,o.y+Math.sin(o.rot)*o.vr*.7);d.scale.set(o.vr*.35,o.vr*1.3,o.vr*.35)});
   inst(DOD,lam(0xffffff),L('rock'),(o,d)=>{d.position.set(o.x,o.vr*.25,o.y);d.scale.set(o.vr,o.vr*.7,o.vr*.9);d.rotation.set(o.s,o.rot,0)},
-    (o,c)=>c.copy(shade(MOON?(o.b==='swamp'?0x5c5470:0x8a8e98):o.b==='desert'?0x9a7d55:o.b==='swamp'?0x4a5045:o.b==='snow'?0x8a96a6:0x737b88,o,.12)));
+    (o,c)=>c.copy(shade(MARS?(o.b==='swamp'?0x2a1a16:o.b==='snow'?0xc8a89a:0x8a4a30):MOON?(o.b==='swamp'?0x5c5470:0x8a8e98):o.b==='desert'?0x9a7d55:o.b==='swamp'?0x4a5045:o.b==='snow'?0x8a96a6:0x737b88,o,.12)));
   inst(BOX,lam(0x1e2738),L('server'),(o,d)=>{d.position.set(o.x,36,o.y);d.scale.set(o.vr*1.6,72,o.vr*1.6)});
-  inst(BOX,bas(MOON?0xff5af0:0x37e2ff),L('server'),(o,d)=>{d.position.set(o.x,52,o.y);d.scale.set(o.vr*1.64,4,o.vr*1.64)},null,false);
-  inst(BOX,bas(MOON?0xff5af0:0x37e2ff),L('server'),(o,d)=>{d.position.set(o.x,24,o.y);d.scale.set(o.vr*1.64,3,o.vr*1.64)},null,false);
+  inst(BOX,bas(MARS?0xff7a2a:MOON?0xff5af0:0x37e2ff),L('server'),(o,d)=>{d.position.set(o.x,52,o.y);d.scale.set(o.vr*1.64,4,o.vr*1.64)},null,false);
+  inst(BOX,bas(MARS?0xff7a2a:MOON?0xff5af0:0x37e2ff),L('server'),(o,d)=>{d.position.set(o.x,24,o.y);d.scale.set(o.vr*1.64,3,o.vr*1.64)},null,false);
   inst(CYL,lam(0x5a6476),L('pylon'),(o,d)=>{d.position.set(o.x,0,o.y);d.scale.set(3,95,3)});
-  inst(SPH,bas(MOON?0xff7af5:0x7ff6ff),L('pylon'),(o,d)=>{d.position.set(o.x,98,o.y);d.scale.setScalar(7)},null,false);
+  inst(SPH,bas(MARS?0xffa060:MOON?0xff7af5:0x7ff6ff),L('pylon'),(o,d)=>{d.position.set(o.x,98,o.y);d.scale.setScalar(7)},null,false);
   inst(BOX,lam(0x4a5568),L('crate'),(o,d)=>{d.position.set(o.x,o.vr*.7,o.y);d.scale.setScalar(o.vr*1.4);d.rotation.y=o.rot});
+  inst(CONE,lam(0xffffff),L('spire'),(o,d)=>{d.position.set(o.x,0,o.y);d.scale.set(o.vr,o.vr*(3+o.s*2.5),o.vr);d.rotation.y=o.rot},(o,c)=>c.copy(shade(0x9a4a2a,o,.12)));
+  inst(CYLC,bas(0xff5a1a),L('lava'),(o,d)=>{d.position.set(o.x,.8,o.y);d.scale.set(o.vr,.6,o.vr*.85);d.rotation.y=o.rot},null,false);
+  inst(CYLC,bas(0xffc040),L('lava'),(o,d)=>{d.position.set(o.x,1.1,o.y);d.scale.set(o.vr*.55,.6,o.vr*.45);d.rotation.y=o.rot},null,false);
+  inst(TOR,lam(0x2a1a16),L('lava'),(o,d)=>{d.position.set(o.x,1,o.y);d.rotation.set(Math.PI/2,0,o.rot);d.scale.set(o.vr,o.vr*.85,o.vr*2)},null,false);
   inst(OCT,lam(0xb48cff,{emissive:0x4a1f8a}),L('mcrystal'),(o,d)=>{d.position.set(o.x,o.vr*.9,o.y);d.scale.set(o.vr*.65,o.vr*1.7,o.vr*.65);d.rotation.set(o.s*.4,o.rot,0)});
   inst(CYLC,lam(0x4f535e),L('crater'),(o,d)=>{d.position.set(o.x,.5,o.y);d.scale.set(o.vr*.92,.6,o.vr*.92)},null,false);
   inst(TOR,lam(0xa3a7b2),L('crater'),(o,d)=>{d.position.set(o.x,1,o.y);d.rotation.x=Math.PI/2;d.scale.set(o.vr,o.vr,o.vr*2.2)},null,false);
@@ -1100,9 +1135,9 @@ function inst(geo,mat,list,fn,colFn,shadow){if(!list.length)return;const m=new T
     const m2=new THREE.Mesh(new THREE.CircleGeometry(1,48).rotateX(-Math.PI/2),lam(o.b==='snow'?0xe4f2ff:0x3b90c4));m2.position.set(o.x,.9,o.y);m2.scale.set(o.vr*.85,1,o.vr*.8);m2.rotation.y=o.rot;scene.add(m2)}
   for(const o of L('wall')){const m=part(scene,BOX,lam(0x2a3446),o.x+o.w/2,28,o.y+o.h/2,o.w,56,o.h);m.receiveShadow=true;part(scene,BOX,bas(0x37e2ff),o.x+o.w/2,57,o.y+o.h/2,o.w+1,2,o.h+1)}
   const hc=[0xc0583d,0x3d6fc0,0xc09a3d,0x7a4ac0,0x3dc08a,0xc03d7a,0x4ac0c0],ROOF=new THREE.ConeGeometry(1,1,4).rotateY(Math.PI/4).translate(0,.5,0);
-  for(const o of L('house')){const cx=o.x+o.w/2,cz=o.y+o.h/2;if(MOON){part(scene,HEMI,lam(0xe8ecf4),cx,0,cz,o.w*.6,48,o.h*.6);part(scene,CYLC,bas(0x7fe0ff),cx,14,cz,o.w*.6+1,3,o.h*.6+1);part(scene,BOX,lam(0x3b475a),cx,10,cz+o.h*.55,18,20,6);continue}part(scene,BOX,lam(0xe8dcc0),cx,22,cz,o.w,44,o.h).receiveShadow=true;part(scene,ROOF,lam(hc[o.hue%7]),cx,44,cz,o.w*.8,36,o.h*.8);
+  for(const o of L('house')){const cx=o.x+o.w/2,cz=o.y+o.h/2;if(SPACE){part(scene,HEMI,lam(MARS?0xf0e0d4:0xe8ecf4),cx,0,cz,o.w*.6,48,o.h*.6);part(scene,CYLC,bas(MARS?0xff9a4a:0x7fe0ff),cx,14,cz,o.w*.6+1,3,o.h*.6+1);part(scene,BOX,lam(0x3b475a),cx,10,cz+o.h*.55,18,20,6);continue}part(scene,BOX,lam(0xe8dcc0),cx,22,cz,o.w,44,o.h).receiveShadow=true;part(scene,ROOF,lam(hc[o.hue%7]),cx,44,cz,o.w*.8,36,o.h*.8);
     part(scene,BOX,lam(0x5b3b22),cx,12,cz+o.h/2+.5,18,24,2);for(const s of[-1,1])part(scene,BOX,bas(0xffe58a),cx+s*o.w*.3,28,cz+o.h/2+.5,14,12,2)}
-  for(const o of L('fountain')){if(MOON){part(scene,CYL,lam(0x5a6476),o.x,0,o.y,o.vr,10,o.vr);part(scene,CYL,lam(0x8a97ab),o.x,0,o.y,6,60,6);part(scene,SPH,bas(0x7fe0ff),o.x,66,o.y,12);continue}part(scene,CYL,lam(0x8a94a6),o.x,0,o.y,o.vr,14,o.vr);part(scene,CYL,lam(0x3b86b8,{emissive:0x0a2a40}),o.x,0,o.y,o.vr-7,15,o.vr-7);part(scene,CYL,lam(0xbfe6ff,{emissive:0x335566}),o.x,0,o.y,5,34,5)}
+  for(const o of L('fountain')){if(SPACE){part(scene,CYL,lam(0x5a6476),o.x,0,o.y,o.vr,10,o.vr);part(scene,CYL,lam(0x8a97ab),o.x,0,o.y,6,60,6);part(scene,SPH,bas(0x7fe0ff),o.x,66,o.y,12);continue}part(scene,CYL,lam(0x8a94a6),o.x,0,o.y,o.vr,14,o.vr);part(scene,CYL,lam(0x3b86b8,{emissive:0x0a2a40}),o.x,0,o.y,o.vr-7,15,o.vr-7);part(scene,CYL,lam(0xbfe6ff,{emissive:0x335566}),o.x,0,o.y,5,34,5)}
 })();
 
 /* ----- labels ----- */
@@ -1170,6 +1205,12 @@ function makeEnemyMesh(e){
       for(let i=0;i<6;i++){const a=i*TAU/6;part(sg,SPHL,U.eye,Math.cos(a)*r*1.1,-r*.05,Math.sin(a)*r*1.1,r*.1)}U.spin=[[sg,'y',3]];break}
     case 'golem':legs4(r*.5,r*.45,r*.4);part(g,DOD,body,0,r*1.05,0,r*.95,r*.85,r*.85);part(g,DOD,body,r*.55,r*1.8,0,r*.48);for(const s of[-1,1])part(g,DOD,dark,r*.2,r*1.05,s*r*1.0,r*.42);
       U.eye=bas(0x7fe0ff);for(const s of[-1,1])part(g,SPHL,U.eye,r*.95,r*1.9,s*r*.2,r*.1);break;
+    case 'worm':{for(let i=0;i<5;i++){const k=i/4;part(g,SPH,i?body:lam(0x8a3f22),-i*r*.75,r*(.7-k*.3),0,r*(1-k*.45))}U.eye=bas(0xffc040);for(const s2 of[-1,1])part(g,SPHL,U.eye,r*.55,r*1.0,s2*r*.35,r*.12);
+      for(let i=0;i<6;i++){const a=i*TAU/6;const t2=part(g,CONE,lam(0xf4ead0),r*.85,r*.7+Math.sin(a)*r*.35,Math.cos(a)*r*.35,r*.08,r*.4,r*.08);t2.rotation.z=-Math.PI/2}break}
+    case 'rover':{part(g,BOX,body,0,r*.8,0,r*1.8,r*.6,r*1.3);for(const sx of[-1,0,1])for(const sz of[-1,1]){const w=part(g,CYLC,lam(0x222222),sx*r*.65,r*.35,sz*r*.75,r*.35,r*.25,r*.35);w.rotation.x=Math.PI/2}
+      part(g,CYL,lam(0x8a97ab),-r*.4,r*1.1,0,r*.06,r*.8,r*.06);part(g,HEMI,lam(0xe8ecf4),-r*.4,r*1.9,0,r*.4,r*.2,r*.4);U.eye=bas(0xff3355);part(g,BOX,U.eye,r*.92,r*1.0,0,r*.05,r*.15,r*.7);break}
+    case 'devil':{U.hover=6;const sg=new THREE.Group();g.add(sg);for(let i=0;i<5;i++){const t2=part(sg,TOR,lam(0xe0a070,{transparent:true,opacity:.75}),0,i*r*.5,0,r*(.4+i*.3));t2.rotation.x=Math.PI/2}
+      part(sg,CONE,lam(0xc88a5a,{transparent:true,opacity:.5}),0,0,0,r*1.6,r*2.5,r*1.6);U.eye=bas(0xffe95a);part(g,SPHL,U.eye,r*.5,r*1.4,0,r*.15);U.spin=[[sg,'y',9]];break}
     case 'robodog':legs4(r*.6,r*.45,r*.55);part(g,BOX,body,0,r*.95,0,r*1.9,r*.9,r*1.1);part(g,BOX,lam(0x2b3546),r*1.1,r*1.35,0,r*.8,r*.7,r*.8);U.eye=bas(0xff3355);part(g,BOX,U.eye,r*1.52,r*1.4,0,r*.08,r*.18,r*.6);break;
     case 'deer':legs4(r*1.1,r*.35,r*.6);part(g,SPH,body,0,r*1.4,0,r*1.15,r*.65,r*.65);part(g,SPH,lam(0xb98450),r*1.15,r*2.0,0,r*.4,r*.42,r*.38);part(g,SPH,lam(0xf1e2c8),-r*1.1,r*1.6,0,r*.22);
       for(const s of[-1,1]){const a=part(g,CYL,lam(0xe8d6b0),r*1.0,r*2.3,s*r*.2,r*.06,r*.8,r*.06);a.rotation.x=s*.6}U.eye=bas(0x111111);for(const s of[-1,1])part(g,SPHL,U.eye,r*1.45,r*2.1,s*r*.2,r*.07);break;
@@ -1207,6 +1248,19 @@ function makeBossMesh(e){
     case 'alienqueen':{part(g,SPH,body,-r*.5,r*.9,0,r*.95,r*.8,r*.9);part(g,SPH,lam(0x1f6b2a),r*.55,r*1.1,0,r*.55,r*.7,r*.5);
       for(let i=0;i<8;i++){const a=(i/8)*TAU+.2,leg=part(g,CYL,lam(0x14401c),Math.cos(a)*r*.4,r*.8,Math.sin(a)*r*.4,r*.07,r*1.6,r*.07);leg.rotation.set(Math.sin(a)*1.1,0,-Math.cos(a)*1.1);U.legs.push(leg)}
       U.eye=bas(0x111111);for(const s of[-1,1])part(g,SPH,U.eye,r*.95,r*1.25,s*r*.22,r*.12,r*.2,r*.14);for(let i=0;i<5;i++)part(g,CONE,lam(0xffd166,{emissive:0x553300}),r*.5,r*1.7,(i-2)*r*.15,r*.06,r*.35,r*.06);break}
+    case 'sandkraken':{for(let i=0;i<5;i++){const k=i/4;part(g,SPH,body,-i*r*.6,r*(1.2-k*.9),0,r*(.85-k*.35))}part(g,SPH,lam(0x2a0a08),r*.55,r*1.25,0,r*.25,r*.5,r*.5);
+      for(let i=0;i<10;i++){const a=i*TAU/10;const t2=part(g,CONE,lam(0xf4ead0),r*.6,r*1.25+Math.sin(a)*r*.45,Math.cos(a)*r*.45,r*.08,r*.5,r*.08);t2.rotation.z=-Math.PI/2}
+      for(let i=0;i<6;i++){const a=i*TAU/6,tn=part(g,CYL,lam(0x8a3f22),0,r*.6,0,r*.12,r*1.6,r*.12);tn.rotation.set(Math.cos(a)*1.1,0,Math.sin(a)*1.1)}
+      U.eye=bas(0xffc040);for(const s2 of[-1,1])part(g,SPHL,U.eye,r*.45,r*1.8,s2*r*.4,r*.1);break}
+    case 'magmagolem':{for(const sx of[-1,1])for(const sz of[-1,1])U.legs.push(part(g,CYL,lam(0x2a1a16),sx*r*.45,0,sz*r*.45,r*.3,r*.6,r*.3));part(g,DOD,body,0,r*1.15,0,r*1.05,r*.95,r*.95);
+      part(g,DOD,body,r*.7,r*1.95,0,r*.5);for(const s2 of[-1,1])part(g,DOD,body,r*.15,r*1.3,s2*r*1.2,r*.52);U.core=bas(0xff7a1a);part(g,SPH,U.core,r*.75,r*1.2,0,r*.35);
+      for(let i=0;i<8;i++){const a=i*.8;part(g,OCT,bas(0xff5a1a),Math.cos(a)*r*.7,r*(.8+(i%3)*.35),Math.sin(a)*r*.7,r*.12,r*.3,r*.12)}U.eye=bas(0xffd040);for(const s2 of[-1,1])part(g,SPHL,U.eye,r*1.12,r*2.05,s2*r*.2,r*.09);break}
+    case 'tripod':{const hh=r*2.4;for(let i=0;i<3;i++){const a=i*TAU/3,lg=part(g,CYL,lam(0x6a707a),Math.cos(a)*r*1.3,0,Math.sin(a)*r*1.3,r*.1,hh*1.05,r*.1);lg.rotation.set(Math.sin(a)*-.45,0,Math.cos(a)*.45)}
+      part(g,SPH,body,0,hh,0,r*1.1,r*.45,r*1.1);part(g,HEMI,lam(0x6a707a),0,hh+r*.2,0,r*.7);U.eye=bas(0xff2244);part(g,SPH,U.eye,r*.95,hh,0,r*.25);
+      for(const s2 of[-1,1])part(g,CYLC,lam(0x3b475a),r*.6,hh-r*.3,s2*r*.7,r*.12,r*1.2,r*.12).rotation.z=Math.PI/2;break}
+    case 'redking':{U.hover=60;part(g,SPH,body,0,0,0,r*.85);U.core=bas(0xff2244);part(g,SPH,U.core,r*.5,0,0,r*.42);
+      for(let i=0;i<7;i++){const a=i*TAU/7;part(g,CONE,lam(0xffc93c,{emissive:0x553300}),Math.cos(a)*r*.55,r*.55,Math.sin(a)*r*.55,r*.12,r*.55,r*.12)}
+      [0xff2244,0xff7a2a,0xffc93c].forEach((c,k)=>{const t2=part(g,TOR,bas(c),0,0,0,r*(1.1+k*.25));t2.rotation.set(k*.8,k*.5,0);U.spin.push([t2,k%2?'x':'y',k%2?-1.2:1])});break}
     case 'starcore':{U.hover=60;part(g,SPH,body,0,0,0,r*.85);U.core=bas(0xffe58a);part(g,SPH,U.core,r*.5,0,0,r*.45);
       [0xffd166,0xffffff,0x7dff6a].forEach((c,k)=>{const t2=part(g,TOR,bas(c),0,0,0,r*(1.1+k*.25));t2.rotation.set(k,k*.7,0);U.spin.push([t2,k%2?'x':'y',k%2?-1.1:.9])});break}
     case 'omega':{U.hover=60;part(g,SPH,body,0,0,0,r*.85);U.core=bas(0xff5af0);part(g,SPH,U.core,r*.5,0,0,r*.45);
@@ -1286,7 +1340,7 @@ function render3d(t,dt){
   camera.position.copy(camPos);if(G.shake>0){camera.position.x+=rnd(-G.shake,G.shake)*.6;camera.position.y+=rnd(-G.shake,G.shake)*.6}camera.lookAt(camLook);
   // light + sky
   const dk=darkness()/.72;skyC.copy(SKY_DAY).lerp(SKY_NIGHT,dk);scene.fog.color.copy(skyC);
-  hemi.intensity=.62-.45*dk;sun.intensity=.78-.66*dk;if(MOON){skyC.setHex(0x03040c);scene.fog.color.copy(skyC);hemi.intensity=.36;sun.intensity=.7}scene.fog.near=camDist+700;scene.fog.far=camDist+2600;lantern.intensity=MOON?.7:dk*1.7;lantern.position.set(p.x,70,p.y);
+  hemi.intensity=.62-.45*dk;sun.intensity=.78-.66*dk;if(MOON){skyC.setHex(0x03040c);scene.fog.color.copy(skyC);hemi.intensity=.36;sun.intensity=.7}if(MARS){skyC.setHex(0x2a0f08);scene.fog.color.copy(skyC);hemi.intensity=.42;sun.intensity=.75;sun.color.setHex(0xffd0a8)}scene.fog.near=camDist+700;scene.fog.far=camDist+2600;lantern.intensity=MOON?.7:dk*1.7;lantern.position.set(p.x,70,p.y);
   sun.position.set(p.x+500,900,p.y+300);sun.target.position.set(p.x,0,p.y);
   // aim from mouse
   if(!touchMode&&ptr.sx!=null){ndc.set(ptr.sx/cv.clientWidth*2-1,-(ptr.sy/cv.clientHeight)*2+1);ray.setFromCamera(ndc,camera);if(ray.ray.intersectPlane(aimPlane,hitV)){G.aimX=hitV.x;G.aimY=hitV.z}}
@@ -1376,7 +1430,7 @@ function render3d(t,dt){
     const on=o.spawned&&!done&&o.left>0,st=o.lz||0;o.lzMeshes.forEach((m,i)=>{m.visible=on;if(!on)return;const hz=i===0;
       if(hz)m.position.set(o.x,16,o.y-o.h*.12);else m.position.set(o.x+o.w*.12,16,o.y);const L2=hz?o.w-44:o.h-44,th=st===2?8:2;m.scale.set(hz?L2:th,th,hz?th:L2);
       m.material.opacity=st===0?.15:st===1?(Math.sin(t*30)>0?.8:.25):1;m.material.color.setHex(st===2?0xff5577:0xff3355)})}
-  for(const k of KIOSKS){if(k.id==='rocket'){const ok=MOON||bossCount()>=1;k.glow.color.setHex(ok?0xffa040+((Math.sin(t*8)>0)?0x002000:0):0x444444);setLabel(k.label,MOON?'ROCKET HOME':'MOON ROCKET',MOON?'Fly back to World 1':ok?'World 2 · walk up to board':'Beat 1 boss to fuel it',ok?'#ffa040':'#8fa3c2')}else k.glow.color.set(k.col)}
+  for(const k of KIOSKS){if(k.id==='rocket'){const ok=[1,2,3].some(w=>w!==WORLD_ID&&worldOpen(w));k.glow.color.setHex(ok?0xffa040+((Math.sin(t*8)>0)?0x002000:0):0x444444);setLabel(k.label,'ROCKET',ok?'Travel between worlds':'Beat 1 boss to fuel it',ok?'#ffa040':'#8fa3c2')}else k.glow.color.set(k.col)}
   // compass arrow
   arrow.visible=false;if(state==='play'&&!G.fight){let best=null,bd=1e9;for(const L of LAIRS){if(save.bosses[L.kind]||(L.sealed&&bossCount()<L.need))continue;const d=Math.hypot(L.x-p.x,L.y-p.y);if(d<bd){bd=d;best=L}}
     if(best&&bd>420){const a=Math.atan2(best.y-p.y,best.x-p.x);arrow.visible=true;arrow.position.set(p.x+Math.cos(a)*52,4,p.y+Math.sin(a)*52);arrow.rotation.set(0,-a,0)}}
@@ -1414,9 +1468,9 @@ const hc={};function setT(id,v){if(hc[id]!==v){hc[id]=v;$(id).textContent=v}}
 let miniT=0;
 function hud(dt){const p=G.p;$('hpFill').style.width=(100*p.hp/p.maxHp)+'%';setT('hpTxt',Math.ceil(p.hp)+'/'+p.maxHp);
   const need=xpNeed(save.level);$('xpFill').style.width=(100*save.xp/need)+'%';setT('lvTxt','Level '+save.level);setT('xpTxt',save.xp+'/'+need+' XP');
-  setT('coinTxt',String(save.coins));setT('mdTxt',String(save.md));$('mdChip').hidden=!(MOON||save.md>0);setT('ptsTxt',String(save.pts));{const dn=G.crew.filter(c=>c.down>0).length;setT('crewTxt',save.crew.length+'/'+CREW_MAX+(dn?' · '+dn+' down':''))}setT('zoneTxt',G.zone);setT('dayTxt',MOON?'Low gravity':isNight()?'Night':'Day');setT('potTxt',String(save.potions));
+  setT('coinTxt',String(save.coins));setT('mdTxt',String(save.md));$('mdChip').hidden=!(SPACE||save.md>0);setT('ptsTxt',String(save.pts));{const dn=G.crew.filter(c=>c.down>0).length;setT('crewTxt',save.crew.length+'/'+CREW_MAX+(dn?' · '+dn+' down':''))}setT('zoneTxt',G.zone);setT('dayTxt',SPACE?'Low gravity':isNight()?'Night':'Day');setT('potTxt',String(save.potions));
   $('tHeal').textContent='HEAL '+save.potions;
-  const ob=`${MOON?'World 2 · Moon':'World 1 · Island'}<br>Bosses <b>${bossCount()}/${LAIRS.length}</b> · Outposts <b>${OUTPOSTS.filter(o=>save.outposts[o.id]).length}/${OUTPOSTS.length}</b>`;if(hc.obj!==ob){hc.obj=ob;$('obj').innerHTML=ob}
+  const ob=`${WORLDS[WORLD_ID].name}<br>Bosses <b>${bossCount()}/${LAIRS.length}</b> · Outposts <b>${OUTPOSTS.filter(o=>save.outposts[o.id]).length}/${OUTPOSTS.length}</b>`;if(hc.obj!==ob){hc.obj=ob;$('obj').innerHTML=ob}
   if(G.fight)$('bossFill').style.width=Math.max(0,100*G.fight.boss.hp/G.fight.boss.maxHp)+'%';
   const pr=$('prompt');if(G.near&&state==='play'){pr.hidden=false;const vb=G.near.id==='rocket'?'Board the ':'Open ',txt=(touchMode?'Tap: ':'')+vb+G.near.name;if(pr.dataset.t!==txt){pr.dataset.t=txt;pr.innerHTML=(touchMode?'':'<kbd>E</kbd>')+vb+G.near.name}}else pr.hidden=true;
   {const bs=$('abar').children;for(let i=0;i<bs.length;i++){const b=bs[i],cd=G.acd[i]||0,id=save.abil[i];b.querySelector('.cd').style.height=(cd>0?100*cd/(G.acdMax[i]||1):0)+'%';b.querySelector('.cdt').textContent=cd>.05?Math.ceil(cd):'';
