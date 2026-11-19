@@ -42,7 +42,7 @@ button:focus-visible{outline:2px solid var(--tech);outline-offset:2px}
 .pill{background:#070b14cc;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:6px 10px;font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase}
 .pill:hover{border-color:var(--tech)}
 #mini{width:150px;height:150px;border-radius:50%;border:2px solid var(--line);background:#13456b;pointer-events:auto;cursor:pointer}
-#obj{background:#070b14cc;border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;pointer-events:none}
+#obj{max-width:260px;background:#070b14cc;border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;pointer-events:none}
 #obj b{color:var(--text)}
 #bossbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 32px));pointer-events:none;display:flex;flex-direction:column;gap:4px}
 .bossname{display:flex;gap:10px;align-items:baseline;justify-content:center;text-shadow:0 2px 3px #000}
@@ -76,6 +76,17 @@ button:focus-visible{outline:2px solid var(--tech);outline-offset:2px}
 .slot{background:var(--panel);border:1px dashed var(--line);border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center;min-width:0}
 .slot.filled{border-style:solid;border-color:var(--tech)}
 .slot.locked{opacity:.5}
+#dlg{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:min(640px,calc(100% - 32px));background:#0b1220f2;border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:10px;padding:14px 16px;display:flex;gap:14px;align-items:flex-start;z-index:20}
+#dlgPort{flex:none;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font:400 24px var(--f-display);color:#0b1220;border:3px solid #ffffff55}
+#dlgBody{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+#dlgName{font:400 15px var(--f-display);letter-spacing:.5px;color:var(--gold)}
+#dlgText{margin:0;font-size:16px;line-height:1.45;color:var(--text);min-height:2.9em}
+#dlgBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.adm{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.adm .card{gap:6px}.adm .row{margin-top:0}
+.adm .btn{padding:7px 10px;font-size:12px}
+.btn.on{background:var(--wild)}
+.storyline{color:var(--gold)}
 #tHeal{width:60px;height:60px;background:#ff4d6d33;font-size:11px}
 #toast{position:absolute;left:50%;top:calc(120px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:8px 14px;border-radius:6px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:calc(100% - 32px);text-align:center}
 #toast.show{opacity:1}
@@ -167,6 +178,7 @@ canvas.prev{width:72px;height:72px;align-self:center}
   <button id="prompt" hidden></button>
   <div id="touch" hidden><button id="tHeal">HEAL</button></div>
   <div id="abar" hidden></div>
+  <div id="dlg" hidden><div id="dlgPort">?</div><div id="dlgBody"><div id="dlgName"></div><p id="dlgText"></p><div id="dlgBtns"></div></div></div>
   <div id="frost"></div>
 
   <div class="screen" id="title">
@@ -214,9 +226,10 @@ canvas.prev{width:72px;height:72px;align-self:center}
   <div class="screen" id="mapScr" hidden>
     <div class="maphead"><h2 id="mapTitle">Island map</h2><button class="btn" id="closeMap">Close</button></div>
     <canvas id="bigmap" width="1200" height="1200"></canvas>
-    <div class="legend"><span>Tap a <b style="color:var(--wild)">green ring</b> to fast travel</span><span><b style="color:#ff4d6d">●</b> boss lair</span><span><b style="color:var(--tech)">■</b> outpost</span><span><b style="color:var(--gold)">▲</b> you</span></div>
+    <div class="legend"><span>Tap a <b style="color:var(--wild)">green ring</b> to fast travel</span><span><b style="color:#ff4d6d">●</b> boss lair</span><span><b style="color:var(--tech)">■</b> outpost</span><span><b style="color:var(--gold)">●</b> someone to talk to</span><span><b style="color:var(--gold)">▲</b> you</span></div>
   </div>
 
+  <div class="screen" id="admin" hidden><div class="inner"><div class="top"><h2 class="logo" style="font-size:28px">Admin Panel</h2><p class="tag" style="margin:0">Testing tools. Changes save to this browser.</p><div class="wallet"><button class="btn" id="closeAdmin">Back to game</button></div></div><div id="adminBody"></div></div></div>
   <div class="screen" id="modal" hidden><div class="mcard" id="mcard"></div></div>
   <div id="toast"></div>
 </div>
@@ -286,8 +299,15 @@ const KIOSKS=[{id:'upgrades',x:-140,y:-90,name:'Upgrade Lab',col:'#c38bff'},{id:
 const grid=new Map(),OBS=[];
 function addObs(o){OBS.push(o);const x0=o.rect?o.x:o.x-o.vr,x1=o.rect?o.x+o.w:o.x+o.vr,y0=o.rect?o.y:o.y-o.vr,y1=o.rect?o.y+o.h:o.y+o.vr;
   for(let cx=Math.floor(x0/CH);cx<=Math.floor(x1/CH);cx++)for(let cy=Math.floor(y0/CH);cy<=Math.floor(y1/CH);cy++){const k=cx+','+cy;if(!grid.has(k))grid.set(k,[]);grid.get(k).push(o)}}
+const NPCS=({
+  1:[{id:'rowan',name:'Elder Rowan',x:-95,y:150,col:'#c9a36a',look:'elder'},{id:'pip',name:'Pip',x:115,y:165,col:'#5fb8ff',look:'cap',bounty:1},{id:'vega',name:'Captain Vega',x:85,y:-330,col:'#ff7a59',look:'pilot'},
+     {id:'bram',name:'Hermit Bram',x:Math.cos(-2)*900,y:Math.sin(-2)*900,col:'#7a5a3a',look:'hood'},{id:'nyx',name:'Dr. Nyx',x:TZ.x-430,y:TZ.y+430,col:'#e8ecf4',look:'goggles'}],
+  2:[{id:'luna',name:'Commander Luna',x:-95,y:150,col:'#b48cff',look:'helmet'},{id:'zed',name:'Zed',x:115,y:165,col:'#7fe0ff',look:'cap',bounty:1},{id:'kip',name:'Kip',x:Math.cos(1.2)*1000,y:Math.sin(1.2)*1000,col:'#f2f4f8',look:'helmet'}],
+  3:[{id:'ares',name:'Chief Ares',x:-95,y:150,col:'#ff7a2a',look:'helmet'},{id:'mika',name:'Mika',x:115,y:165,col:'#ffd166',look:'cap',bounty:1},{id:'rov',name:'R-0V',x:Math.cos(.3)*900,y:Math.sin(.3)*900,col:'#d8d8d8',look:'robot'}],
+})[WORLD_ID];
 function zoneBlocked(x,y,pad){
   if(Math.hypot(x,y)<VILLAGE+80+pad)return true;
+  for(const n of NPCS)if(Math.hypot(x-n.x,y-n.y)<110+pad)return true;
   for(const l of LAIRS)if(Math.hypot(x-l.x,y-l.y)<l.R+60+pad)return true;
   for(const o of OUTPOSTS)if(Math.abs(x-o.x)<o.w/2+90+pad&&Math.abs(y-o.y)<o.h/2+90+pad)return true;
   return false;
@@ -426,7 +446,7 @@ const SKINS={
 
 /* ================= SAVE ================= */
 const KEY='feral-wilds-3d-v1';
-const DEF={coins:0,pts:0,level:1,xp:0,up:{hp:0,dmg:0,rate:0,spd:0,dash:0,regen:0,multi:0},skins:['cadet'],skin:'cadet',weapons:['blaster'],weapon:'blaster',buddy:0,potions:2,muted:false,bosses:{},outposts:{},pos:null,pos2:null,pos3:null,world:1,md:0,abil:['dash',null,null],abilOwned:['dash'],moonVisited:false,lastSector:false,time:20,started:false};
+const DEF={coins:0,pts:0,level:1,xp:0,up:{hp:0,dmg:0,rate:0,spd:0,dash:0,regen:0,multi:0},skins:['cadet'],skin:'cadet',weapons:['blaster'],weapon:'blaster',buddy:0,potions:2,muted:false,bosses:{},outposts:{},pos:null,pos2:null,pos3:null,world:1,md:0,abil:['dash',null,null],abilOwned:['dash'],moonVisited:false,lastSector:false,story:0,bounty:null,admin:{god:false,ohk:false,fast:false},time:20,started:false};
 function load(){const d=JSON.parse(JSON.stringify(DEF));try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'){Object.assign(d,s);d.up=Object.assign({},DEF.up,s.up||{})}}catch(e){}return d}
 let save=load();
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
@@ -451,8 +471,11 @@ addEventListener('keydown',e=>{unlockAudio();keys[e.code]=true;
     if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
     if(e.code==='Space'||e.code==='ShiftLeft'||e.code==='ShiftRight'||e.code==='Digit1')useAbility(0);if(e.code==='Digit2'||e.code==='KeyF')useAbility(1);if(e.code==='Digit3'||e.code==='KeyR')useAbility(2);
     if(e.code==='KeyQ')usePotion();if(e.code==='KeyE')interact();if(e.code==='KeyM')openMap();
-    if(e.code==='KeyP'||e.code==='Escape')openMenu();
-  }else if(e.code==='Escape'||(state==='map'&&e.code==='KeyM')){if(state==='map')closeMap();else if(state==='menu')closePanel();else if(state==='paused')resume()}
+    if(e.code==='KeyP'||e.code==='Escape')openMenu();if(e.code==='Backquote')openAdmin();
+  }else if(state==='talk'){if(['Space','Enter','KeyE'].includes(e.code)){e.preventDefault();dlgNext()}else if(e.code==='Escape')closeDlg(false)}
+  else if(state==='admin'){if(e.code==='Escape'||e.code==='Backquote')closeAdmin()}
+  else if(e.code==='Backquote'&&state!=='title')openAdmin();
+  else if(e.code==='Escape'||(state==='map'&&e.code==='KeyM')){if(state==='map')closeMap();else if(state==='menu')closePanel();else if(state==='paused')resume()}
 });
 addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;ptr.down=false;if(state==='play')openMenu()});
@@ -473,7 +496,7 @@ function newGame(){
   const st=stats(),pos=save[POSKEY]||{x:0,y:130};
   G={st,t:0,shake:0,flash:0,ts:1,slow:0,fade:0,spawnT:0,saveT:0,
     p:{x:pos.x,y:pos.y,r:15,hp:st.maxHp,maxHp:st.maxHp,aim:-Math.PI/2,fireT:0,dashT:0,dashCd:0,inv:0,slowT:0,dx:0,dy:-1,trail:[]},
-    buddy:{x:pos.x,y:pos.y,t:0,a:0},ens:[],pb:[],eb:[],parts:[],texts:[],coins:[],tele:[],beams:[],bolts:[],slashes:[],booms:[],swing:0,acd:[0,0,0],acdMax:[1,1,1],freezeT:0,godT:0,odT:0,rings:[],meteors:[],fight:null,near:null,zone:''};
+    buddy:{x:pos.x,y:pos.y,t:0,a:0},ens:[],pb:[],eb:[],parts:[],texts:[],coins:[],tele:[],beams:[],bolts:[],slashes:[],booms:[],swing:0,drops:[],evT:rnd(70,110),showerT:0,showerAcc:0,amb:false,storyT:0,acd:[0,0,0],acdMax:[1,1,1],freezeT:0,godT:0,odT:0,rings:[],meteors:[],fight:null,near:null,zone:''};
 }
 newGame();
 /* ================= CREW + TRAITS ================= */
@@ -527,7 +550,7 @@ function buildCrew(){const old=new Map((G.crew||[]).map(r=>[r.m.id,r]));
 function crewToPlayer(heal){for(const c of G.crew){const a=c.slot*2.4,r=55+20*Math.sqrt(c.slot);c.x=G.p.x+Math.cos(a)*r;c.y=G.p.y+Math.sin(a)*r;collide(c);if(G.fight)arenaClamp(c);if(heal){c.hp=c.maxHp;c.down=0}}}
 function hurtCrew(c,d){if(c.down>0||c.inv>0)return;c.hp-=d;c.inv=.5;burst(c.x,c.y,4,'#ff4d6d',90,3);
   if(c.hp<=0){c.hp=0;c.down=c.tr.quick?5:15;burst(c.x,c.y,14,'#8fa3c2',140,4)}}
-function hitEnemy(e,dmg,own,bl){if(e.hp<=0)return;e.hp-=dmg;e.flash=.08;e.aggro=true;burst(bl?bl.x:e.x,bl?bl.y:e.y,3,bl?bl.col:'#ffffff',90,3);
+function hitEnemy(e,dmg,own,bl){if(e.hp<=0)return;if(save.admin.ohk)dmg*=1000;e.hp-=dmg;e.flash=.08;e.aggro=true;burst(bl?bl.x:e.x,bl?bl.y:e.y,3,bl?bl.col:'#ffffff',90,3);
   if(own&&own.tr.vamp)own.hp=Math.min(own.maxHp,own.hp+dmg*.3);if(e.hp<=0)kill(e,own)}
 function crewDmg(c){let d=c.st.dmg;if(c.tr.crit&&Math.random()<.2){d*=3;burst(c.x,c.y,6,'#ffc93c',120,3)}return d}
 function tryRecruit(e,own){
@@ -596,9 +619,130 @@ function segDist(px,py,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy;let t=
 function arenaClamp(o){const f=G.fight;if(!f)return;const L=f.l,dx=o.x-L.x,dy=o.y-L.y,d=Math.hypot(dx,dy),lim=L.R-o.r;if(d>lim){o.x=L.x+dx/d*lim;o.y=L.y+dy/d*lim}}
 function inArena(rad){const L=G.fight.l,a=Math.random()*TAU,d=Math.sqrt(Math.random())*(rad||L.R-50);return{x:L.x+Math.cos(a)*d,y:L.y+Math.sin(a)*d}}
 
-function hurt(d){const p=G.p;if(p.inv>0||p.dashT>0||G.slow>0||G.godT>0||state!=='play')return;
+function hurt(d){const p=G.p;if(p.inv>0||p.dashT>0||G.slow>0||G.godT>0||save.admin.god||state!=='play')return;
   p.hp-=d;p.inv=.7;G.shake=Math.max(G.shake,8);G.flash=.25;sfx.hit();ftxt(p.x,p.y-24,'-'+Math.round(d),'#ff4d6d');if(p.hp<=0){p.hp=0;knockedOut()}}
 function tryDash(){useAbility(0)}
+
+/* ================= STORY + NPCS ================= */
+const STORY=[
+ {w:1,type:'talk',npc:'rowan',goal:'Talk to Elder Rowan in the Home Village',say:[['rowan',"Ah, you're up. Good. Listen closely, young one."],['rowan','Ever since that strange humming began, the animals of this island have turned wild and angry.'],['rowan',"Old Bram lives alone in the Whispering Woods, north-west of here. He knows the old stories. Find him. Follow the gold arrow."]]},
+ {w:1,type:'talk',npc:'bram',goal:'Find Hermit Bram in the Whispering Woods',say:[['bram','A visitor! Nobody visits Bram.'],['bram',"The humming? It is a signal. It comes from shards, glowing pieces of some broken machine."],['bram',"Grizzlor, the great iron bear, wears one in his armour. That is why he rages. Take it from him."]]},
+ {w:1,type:'boss',boss:'grizzlor',goal:"Defeat Grizzlor and take his shard"},
+ {w:1,type:'talk',npc:'bram',goal:'Bring the shard back to Hermit Bram',say:[['bram','You did it! Look at it glow...'],['bram','This is no natural stone. It is technology. Find Dr. Nyx in the Neon District, east of the village. She studies these things.']]},
+ {w:1,type:'talk',npc:'nyx',goal:'Find Dr. Nyx in the Neon District',say:[['nyx','Is that a core shard? Incredible.'],['nyx',"The signal is encrypted. The tech outposts store decoder data in their vaults. Crack one open and bring me what you find."]]},
+ {w:1,type:'outpost',goal:'Crack any tech outpost vault'},
+ {w:1,type:'talk',npc:'nyx',goal:'Bring the decoder data to Dr. Nyx',say:[['nyx','Decoding... got it!'],['nyx',"The signal isn't coming from this island at all. It's being beamed down from the Moon."],['nyx','Captain Vega keeps a rocket in the village. Tell her I sent you.']]},
+ {w:1,type:'talk',npc:'vega',goal:'Talk to Captain Vega by the rocket',say:[['vega','Nyx sent you? Then this is serious.'],['vega','My rocket can take you to the Moon. Hop in whenever you are ready. Commander Luna runs the Moon Base up there.']]},
+ {w:2,type:'talk',npc:'luna',goal:'Fly to the Moon and meet Commander Luna',say:[['luna','Welcome to Moon Base. Mind the low gravity.'],['luna',"We lost contact with our scout, Kip, out in the Crystal Fields to the south-east. He was tracking the signal. Find him."]]},
+ {w:2,type:'talk',npc:'kip',goal:'Find the lost astronaut Kip in the Crystal Fields',say:[['kip','Oh thank goodness. My radio died days ago!'],['kip',"The signal comes from the alien MOTHERSHIP to the north. It's acting like a giant antenna. Shoot it down!"]]},
+ {w:2,type:'boss',boss:'mothership',goal:'Shoot down the Mothership'},
+ {w:2,type:'talk',npc:'luna',goal:'Report back to Commander Luna',say:[['luna','The Mothership is down. But the signal is still there...'],['luna',"It was only a relay. The true source is on Mars. Take the rocket. Chief Ares runs the colony there."]]},
+ {w:3,type:'talk',npc:'ares',goal:'Fly to Mars and meet Chief Ares',say:[['ares',"So you're the one who silenced the Mothership. Welcome to Mars."],['ares','An old colony robot, R-0V, has been wandering the Red Dunes to the east, saying strange things about a king. Talk to it.']]},
+ {w:3,type:'talk',npc:'rov',goal:'Find the old robot R-0V in the Red Dunes',say:[['rov','BEEP. VISITOR DETECTED.'],['rov','THE RED KING BUILT THE SIGNAL MACHINE. HE WANTS EVERY CREATURE ON EVERY WORLD TO OBEY HIM.'],['rov','HIS THRONE IS SEALED. DEFEAT HIS THREE GUARDIANS. THEN END HIS REIGN.']]},
+ {w:3,type:'boss',boss:'redking',goal:'Defeat the Red King (beat 3 Mars bosses to break his seal)'},
+ {w:1,type:'talk',npc:'rowan',goal:'Fly home and tell Elder Rowan',say:[['rowan','Listen... the humming has stopped.'],['rowan',"You did it. The animals are calm again, the Moon is quiet, and the Red King's machine is dust."],['rowan',"The island owes you everything. But I suspect adventure isn't done with you yet."]]},
+];
+const IDLE={
+  rowan:['The island was peaceful once. It can be again.','Your crew looks strong. Look after them.'],
+  pip:[],zed:[],mika:[],
+  vega:['Fuel is ready whenever you are.','The Moon is cold. Mars is colder.'],
+  bram:['The woods remember everything.','Mushrooms in the swamp glow at night. Do not eat them.'],
+  nyx:['Servers in the Neon District hum louder at night. Odd.','Those mechs are older than they look.'],
+  luna:["Watch out for the craters. Golems hide in them.","Earth looks lovely from here, doesn't it?"],
+  kip:['I am never going on a solo mission again.','The crystals sing if you stand still long enough.'],
+  ares:['Stay out of the lava. Seriously.','The colony depends on people like you.'],
+  rov:['BEEP. SAND IN SERVOS.','R-0V IS 312 YEARS OLD. R-0V IS FINE.'],
+};
+const npcById=id=>NPCS.find(n=>n.id===id);
+const storyStep=()=>STORY[save.story]||null;
+function storyAdvance(){const st=storyStep();if(!st)return;save.story++;const w=st.w;save.coins+=60*w*w;persist();const nx=storyStep();sfx.lvl();
+  if(nx)toast('Story +'+60*w*w+' coins · Next: '+nx.goal);else{save.pts+=20;persist();setTimeout(()=>banner('THE END','The signal is silent. +20 upgrade points. Keep exploring!',5000,'#ffc93c'),400)}}
+function storyCheck(){const st=storyStep();if(!st)return;
+  if(st.type==='boss'&&save.bosses[st.boss])storyAdvance();
+  else if(st.type==='outpost'&&Object.keys(save.outposts).length>0)storyAdvance()}
+function storyTarget(){const st=storyStep();if(!st||st.w!==WORLD_ID)return null;
+  if(st.type==='talk'){const n=npcById(st.npc);return n?{x:n.x,y:n.y}:null}
+  if(st.type==='boss'){const L=LAIRS.find(l=>l.kind===st.boss);if(L&&!(L.sealed&&bossCount()<L.need))return{x:L.x,y:L.y};const o=LAIRS.find(l=>!save.bosses[l.kind]&&!l.sealed);return o?{x:o.x,y:o.y}:null}
+  if(st.type==='outpost'){let best=null,bd=1e9;for(const o of OUTPOSTS){if(save.outposts[o.id])continue;const d=Math.hypot(o.x-G.p.x,o.y-G.p.y);if(d<bd){bd=d;best=o}}return best?{x:best.x,y:best.y}:null}
+  return null}
+const npcHasQuest=n=>{const st=storyStep();return(st&&st.type==='talk'&&st.npc===n.id&&st.w===WORLD_ID)||(n.bounty&&(!save.bounty||save.bounty.have>=save.bounty.need))};
+
+let dlg=null;
+function openDlg(lines,onDone,choices){dlg={lines,i:0,onDone,choices};state='talk';syncUI();$('dlg').hidden=false;renderDlg()}
+function renderDlg(){const[who,text]=dlg.lines[dlg.i],n=npcById(who)||{name:who,col:'#3ad6ff'};$('dlgName').textContent=n.name;$('dlgPort').style.background=n.col;$('dlgPort').textContent=n.name[0];$('dlgText').textContent=text;
+  const lastL=dlg.i===dlg.lines.length-1;let h='';if(lastL&&dlg.choices)dlg.choices.forEach((c,i)=>h+=`<button class="btn ${i?'ghost':'g'}" data-c="${i}">${c.label}</button>`);else h=`<button class="btn" data-c="next">${lastL?'Done':'Next'}</button>`;$('dlgBtns').innerHTML=h}
+function dlgNext(){if(!dlg)return;if(dlg.i<dlg.lines.length-1){dlg.i++;renderDlg()}else if(!dlg.choices)closeDlg(true)}
+function closeDlg(done){const d=dlg;dlg=null;$('dlg').hidden=true;state='play';syncUI();last=performance.now();if(done&&d&&d.onDone)d.onDone()}
+$('dlg').addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(!b||!dlg)return;if(b.dataset.c==='next')return dlgNext();const c=dlg.choices[+b.dataset.c];closeDlg(false);if(c.fn)c.fn()});
+function talkTo(n){
+  const st=storyStep();
+  if(st&&st.type==='talk'&&st.npc===n.id&&st.w===WORLD_ID){openDlg(st.say,storyAdvance);return}
+  if(n.bounty){const B=save.bounty;
+    if(B&&B.have>=B.need){openDlg([[n.id,`Bounty complete! ${B.need} ${tname(B.kind)}s taken care of. Here's your reward.`]],()=>{save.coins+=B.coins;save.md+=B.md||0;save.bounty=null;persist();sfx.lvl();toast(`+${B.coins} coins${B.md?' · +'+B.md+' Moon Dollars':''}`)});return}
+    if(B){openDlg([[n.id,`Your bounty: ${B.have}/${B.need} ${tname(B.kind)}s${B.w!==WORLD_ID?' (on '+WORLDS[B.w].name+')':''}. Keep going!`]],null,[{label:'Keep it'},{label:'Cancel bounty',fn:()=>{save.bounty=null;persist();toast('Bounty cancelled')}}]);return}
+    const kinds=[...new Set(Object.values(TABLE).flatMap(t=>t.h))].filter(k=>EN[k]&&k!=='turret'),kind=pick(kinds),need=6+Math.floor(Math.random()*6),coins=Math.round(need*EN[kind].coin*8*(1+LVOFF/5)),md=SPACE?need*3:0;
+    openDlg([[n.id,"Psst. I run the bounty board around here."],[n.id,`Take down ${need} ${tname(kind)}s and I'll pay you ${coins} coins${md?' and '+md+' Moon Dollars':''}. Deal?`]],null,
+      [{label:'Accept bounty',fn:()=>{save.bounty={w:WORLD_ID,kind,need,have:0,coins,md};persist();sfx.up();toast(`Bounty: defeat ${need} ${tname(kind)}s`)}},{label:'Not now'}]);return}
+  const ln=IDLE[n.id]||['...'];n.k=(n.k||0)+1;let line=ln[n.k%ln.length];
+  if(st&&st.w!==WORLD_ID&&n.id===(WORLD_ID===1?'rowan':WORLD_ID===2?'luna':'ares'))line+=` (Your story continues on ${WORLDS[st.w].name}.)`;
+  openDlg([[n.id,line]])}
+const tname=k=>(CREW_TYPES[k]?CREW_TYPES[k].name:k).toLowerCase();
+
+/* ================= WORLD EVENTS ================= */
+function startEvent(k){const p=G.p,b=biomeAt(p.x,p.y),T=TABLE[b]||Object.values(TABLE)[0];
+  if(k==='golden'){const list=T.h.filter(x=>x!=='turret');if(!list.length)return;const kind=pick(list),a=Math.random()*TAU;const e=spawnEnemy(kind,p.x+Math.cos(a)*420,p.y+Math.sin(a)*420,{});e.golden=true;e.hp*=4;e.maxHp*=4;e.coin*=10;e.xp*=3;e.spd*=1.15;
+    banner('GOLDEN BEAST',`A shiny golden ${tname(kind)} is nearby. Catch it for treasure!`,2600,'#ffc93c')}
+  else if(k==='shower'){G.showerT=8;G.showerAcc=0;banner('METEOR SHOWER','Rocks are falling! They smash enemies and leave coins. Dodge the red circles.',2600,'#ff7a2a')}
+  else if(k==='ambush'){const list=T.h.filter(x=>x!=='turret');if(!list.length)return;const n=5+Math.floor(LVOFF/7);for(let i=0;i<n;i++){const a=i/n*TAU,e=spawnEnemy(pick(list),p.x+Math.cos(a)*360,p.y+Math.sin(a)*360,{aggro:true,delay:.6});e.amb=true}G.amb=true;
+    banner('AMBUSH!','Survive the wave for a bonus',2200,'#ff3355')}
+  else if(k==='drop'){const a=Math.random()*TAU;G.drops.push({x:p.x+Math.cos(a)*260,y:p.y+Math.sin(a)*260,t:0});banner('SUPPLY DROP','A crate landed nearby. Grab it!',2200,'#9be15d')}
+}
+function updateEvents(dt){const p=G.p;
+  if(!G.fight&&Math.hypot(p.x,p.y)>VILLAGE+150){G.evT-=dt;if(G.evT<=0){G.evT=rnd(100,170);startEvent(pick(['golden','shower','ambush','drop']))}}
+  if(G.showerT>0){G.showerT-=dt;G.showerAcc+=dt;while(G.showerAcc>.5){G.showerAcc-=.5;const a=Math.random()*TAU,d=rnd(90,520);G.meteors.push({x:p.x+Math.cos(a)*d,y:p.y+Math.sin(a)*d,t:0,ev:true})}}
+  if(G.amb&&!G.ens.some(e=>e.amb)){G.amb=false;const c=Math.round(80*(1+LVOFF/4));for(let i=0;i<10;i++){const a=Math.random()*TAU;G.coins.push({x:p.x,y:p.y,vx:Math.cos(a)*200,vy:Math.sin(a)*200,v:Math.round(c/10),t:0})}banner('AMBUSH SURVIVED','+'+c+' coins',1800,'#9be15d')}
+  for(const d of G.drops){d.t+=dt;if(Math.hypot(p.x-d.x,p.y-d.y)<34){d.got=true;const c=Math.round(60*(1+LVOFF/4));save.coins+=c;if(save.potions<5)save.potions++;if(SPACE)save.md+=15;persist();sfx.lvl();burst(d.x,d.y,30,'#9be15d',200,5);toast(`Supply crate: +${c} coins · +1 Repair Kit${SPACE?' · +15 Moon Dollars':''}`)}}
+  G.drops=G.drops.filter(d=>!d.got&&d.t<90);
+}
+
+/* ================= ADMIN PANEL ================= */
+function openAdmin(){if(state==='title')return;if(dlg)closeDlg(false);$('modal').hidden=true;$('panel').hidden=true;$('mapScr').hidden=true;state='admin';syncUI();$('admin').hidden=false;renderAdmin()}
+function closeAdmin(){$('admin').hidden=true;refreshStats();buildAbar();state='play';syncUI();last=performance.now()}
+$('closeAdmin').onclick=closeAdmin;
+function renderAdmin(){const A=save.admin||(save.admin={god:false,ohk:false,fast:false}),st=storyStep();
+  const B=(act,label,cls)=>`<button class="btn ${cls||'ghost'}" data-adm="${act}">${label}</button>`;
+  let h=`<div class="adm">
+  <div class="card"><div class="kicker"><span>Travel</span><span>${WORLDS[WORLD_ID].name}</span></div><div class="row">${[1,2,3].map(w=>B('world:'+w,WORLDS[w].name,w===WORLD_ID?'':'g')).join('')}</div></div>
+  <div class="card"><div class="kicker"><span>Teleport</span><span>this world</span></div><div class="row">${B('tp:home','Village')}${B('tp:tech',BIOME.tech.name)}
+    ${LAIRS.map((L,i)=>B('tp:lair:'+i,BOSS[L.kind].name)).join('')}${OUTPOSTS.map((o,i)=>B('tp:out:'+i,'Outpost '+(i+1))).join('')}${NPCS.map(n=>B('tp:npc:'+n.id,n.name)).join('')}</div></div>
+  <div class="card"><div class="kicker"><span>Cheats</span></div><div class="row">${B('t:god','God mode: '+(A.god?'ON':'off'),A.god?'on':'')}${B('t:ohk','One-hit kills: '+(A.ohk?'ON':'off'),A.ohk?'on':'')}${B('t:fast','Super speed: '+(A.fast?'ON':'off'),A.fast?'on':'')}${B('heal','Full heal')}</div></div>
+  <div class="card"><div class="kicker"><span>Resources</span><span>${save.coins} c · ${save.md} MD · ${save.pts} pts · Lv ${save.level}</span></div><div class="row">${B('coins','+10,000 coins')}${B('md','+1,000 Moon $')}${B('pts','+50 points')}${B('lvl','+5 levels')}${B('potions','Max heals')}</div></div>
+  <div class="card"><div class="kicker"><span>Unlock</span></div><div class="row">${B('unlock','Unlock everything','g')}${B('maxup','Max upgrades')}${B('crew','+5 crew')}</div><p>Everything = all weapons, skins, abilities, 3 ability slots, max buddy drone.</p></div>
+  <div class="card"><div class="kicker"><span>Enemies & bosses</span><span>${bossCount()}/${LAIRS.length} bosses</span></div><div class="row">${B('killall','Kill all enemies')}${B('bossall','Beat all bosses here')}${B('bossreset','Reset bosses here')}${B('outreset','Reset outposts here')}</div></div>
+  <div class="card"><div class="kicker"><span>World events</span><span>${isNight()?'Night':'Day'}</span></div><div class="row">${B('ev:golden','Golden Beast')}${B('ev:shower','Meteor Shower')}${B('ev:ambush','Ambush')}${B('ev:drop','Supply Drop')}${SPACE?'':B('day','Day')+B('night','Night')}</div></div>
+  <div class="card"><div class="kicker"><span>Story</span><span>Step ${Math.min(save.story+1,STORY.length)}/${STORY.length}</span></div><p class="storyline">${st?st.goal+' ('+WORLDS[st.w].name+')':'Story complete'}</p><div class="row">${B('story:-1','◀ Back')}${B('story:1','Skip ▶')}${B('story:reset','Restart story')}</div></div>
+  <div class="card"><div class="kicker"><span>Danger zone</span></div><div class="row">${B('reset',G.resetArm?'Click again to wipe save':'Reset save',G.resetArm?'g':'')}</div><p>Wipes all progress in this browser and reloads.</p></div>
+  </div>`;$('adminBody').innerHTML=h}
+$('adminBody').addEventListener('click',e=>{const b=e.target.closest('[data-adm]');if(!b)return;const [a,x,y]=b.dataset.adm.split(':'),p=G.p,A=save.admin;if(a!=='reset')G.resetArm=false;
+  const tp=(tx,ty)=>{if(G.fight)endFight();p.x=tx;p.y=ty;collide(p);G.eb=[];crewToPlayer();closeAdmin()};
+  if(a==='world'){if(+x!==WORLD_ID)launch(+x,true);return}
+  if(a==='tp'){if(x==='home')return tp(0,130);if(x==='tech')return tp(TZ.x+TZ.r*.5,TZ.y);if(x==='lair'){const L=LAIRS[+y];return tp(L.x,L.y+L.R+80)}if(x==='out'){const o=OUTPOSTS[+y];return tp(o.x,o.y+o.h/2+70)}if(x==='npc'){const n=npcById(y);return tp(n.x+40,n.y+40)}}
+  if(a==='t'){A[x]=!A[x]}
+  if(a==='heal'){p.hp=p.maxHp;for(const c of G.crew){c.hp=c.maxHp;c.down=0}}
+  if(a==='coins')save.coins+=10000;if(a==='md')save.md+=1000;if(a==='pts')save.pts+=50;if(a==='potions')save.potions=5;
+  if(a==='lvl'){for(let i=0;i<5;i++){save.level++;save.pts++}save.xp=0}
+  if(a==='unlock'){save.weapons=Object.keys(WEAP);save.skins=Object.keys(SKINS);save.abilOwned=Object.keys(ABIL);save.moonVisited=true;save.lastSector=true;save.buddy=5;toast('Everything unlocked')}
+  if(a==='maxup'){for(const u of UPG)save.up[u.id]=u.max}
+  if(a==='crew'){const ks=Object.keys(CREW_TYPES);for(let i=0;i<5&&save.crew.length<CREW_MAX;i++)save.crew.push(newMember(pick(ks)));buildCrew();crewToPlayer()}
+  if(a==='killall'){for(const en of G.ens.slice())if(en.hp>0&&!en.passive){en.hp=0;kill(en)}G.ens=G.ens.filter(en=>en.hp>0)}
+  if(a==='bossall'){if(G.fight)endFight();for(const L of LAIRS)save.bosses[L.kind]=true;storyCheck()}
+  if(a==='bossreset'){if(G.fight)endFight();for(const L of LAIRS)delete save.bosses[L.kind]}
+  if(a==='outreset'){for(const o of OUTPOSTS){delete save.outposts[o.id];if(o.spawned){o.spawned=false;G.ens=G.ens.filter(en=>en.op!==o.id+1)}}}
+  if(a==='ev'){closeAdmin();G.evT=rnd(100,170);startEvent(x);return}
+  if(a==='day')save.time=20;if(a==='night')save.time=150;
+  if(a==='story'){if(x==='reset')save.story=0;else save.story=clamp(save.story+(+x),0,STORY.length)}
+  if(a==='reset'){if(G.resetArm){try{localStorage.removeItem(KEY);sessionStorage.clear()}catch(_){}location.hash='home';location.reload();return}G.resetArm=true}
+  persist();refreshStats();renderAdmin()});
 /* ================= ABILITIES ================= */
 const ICONS={dash:'<path d="M4 6l6 6-6 6M12 6l6 6-6 6"/>',pulse:'<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v2M12 21v2M1 12h2M21 12h2"/>',
   freezer:'<path d="M12 2v20M3.3 7l17.4 10M3.3 17l17.4-10M9 4l3 2 3-2M9 20l3-2 3 2"/>',nodeath:'<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
@@ -638,7 +782,8 @@ function updateAbilities(dt){const p=G.p;
   for(const r of G.rings)r.t+=dt;G.rings=G.rings.filter(r=>r.t<.45);
   for(const m of G.meteors){m.t+=dt;if(m.t>=.7&&!m.done){m.done=true;const R0=140,dmg=(120+12*save.level)*G.st.dmg;
     for(const e of G.ens){if(e.spawn>0||e.hp<=0)continue;const d=Math.hypot(e.x-m.x,e.y-m.y);if(d<R0+e.r)hitEnemy(e,dmg*(d<R0*.5?1:.7),null,null)}
-    G.booms.push({x:m.x,y:m.y,r:R0,t:0,col:'#ff7a2a'});burst(m.x,m.y,40,'#ff9a3c',380,6);G.shake=Math.max(G.shake,14);sfx.boom()}}
+    G.booms.push({x:m.x,y:m.y,r:R0,t:0,col:'#ff7a2a'});burst(m.x,m.y,40,'#ff9a3c',380,6);G.shake=Math.max(G.shake,m.ev?6:14);sfx.boom();
+    if(m.ev){if(Math.hypot(G.p.x-m.x,G.p.y-m.y)<100)hurt(15*curDmul());for(let i=0;i<4;i++){const a=Math.random()*TAU;G.coins.push({x:m.x,y:m.y,vx:Math.cos(a)*150,vy:Math.sin(a)*150,v:Math.round(4*(1+LVOFF/4)),t:0})}}}}
   G.meteors=G.meteors.filter(m=>!m.done);
   // slot unlocks
   if(SPACE&&!save.moonVisited){save.moonVisited=true;persist();buildAbar();setTimeout(()=>toast('Ability slot 2 unlocked! Equip a second ability in Menu → Abilities.'),3500)}
@@ -689,7 +834,7 @@ function updatePlayer(dt){const p=G.p;let mx=0,my=0;
   if(keys.KeyA||keys.ArrowLeft)mx--;if(keys.KeyD||keys.ArrowRight)mx++;if(keys.KeyW||keys.ArrowUp)my--;if(keys.KeyS||keys.ArrowDown)my++;
   if(joy.id!==null){const dx=joy.x-joy.ox,dy=joy.y-joy.oy,l=Math.hypot(dx,dy);if(l>6){const k=Math.min(1,l/55);mx=dx/l*k;my=dy/l*k}}
   const l=Math.hypot(mx,my);if(l>1){mx/=l;my/=l}if(l>.1){p.dx=mx/Math.min(1,l);p.dy=my/Math.min(1,l)}
-  let spd=G.st.spd*(p.slowT>0?.55:1)*(G.odT>0?1.3:1);
+  let spd=G.st.spd*(p.slowT>0?.55:1)*(G.odT>0?1.3:1)*(save.admin.fast?2.2:1);
   if(p.dashT>0){p.dashT-=dt;spd=G.st.spd*(SPACE?4.2:3.2);const dl=Math.hypot(p.dx,p.dy)||1;mx=p.dx/dl;my=p.dy/dl}
   p.x+=mx*spd*dt;p.y+=my*spd*dt;collide(p);arenaClamp(p);
   p.dashCd=Math.max(0,p.dashCd-dt);p.inv=Math.max(0,p.inv-dt);p.slowT=Math.max(0,p.slowT-dt);p.fireT-=dt;
@@ -839,7 +984,7 @@ function update(dt){
       if(o.left===0&&Math.hypot(p.x-o.x,p.y-o.y)<p.r+26){save.outposts[o.id]=true;const c=60+40*o.lvl;for(let i=0;i<14;i++){const a=Math.random()*TAU;G.coins.push({x:o.x,y:o.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,v:Math.round(c/14),t:0})}
         save.pts+=2;if(SPACE){const v=MARS?50:30;save.md+=v;setTimeout(()=>toast('+'+v+' Moon Dollars from the vault'),1200)}gainXp(40*o.lvl);persist();sfx.up();burst(o.x,o.y,50,'#37e2ff',320,5);banner('VAULT CRACKED','+2 upgrade points · +'+c+' coins',2200,'#37e2ff')}}}
   if(MARS){const gx=Math.floor(p.x/CH),gy=Math.floor(p.y/CH),arr=grid.get(gx+','+gy);if(arr)for(const o of arr)if(o.kind==='lava'&&Math.hypot(p.x-o.x,p.y-o.y)<o.vr*.85){hurt(10*curDmul());break}}
-  updateAbilities(dt);const frozen=G.freezeT>0;
+  updateAbilities(dt);updateEvents(dt);G.storyT-=dt;if(G.storyT<=0){G.storyT=1;storyCheck()}const frozen=G.freezeT>0;
   if(!frozen)for(const e of G.ens)updateEnemy(e,dt);
   for(let i=0;i<G.ens.length;i++)for(let j=i+1;j<G.ens.length;j++){const a=G.ens[i],c=G.ens[j],dx=c.x-a.x,dy=c.y-a.y;if(Math.abs(dx)>60||Math.abs(dy)>60)continue;const d=Math.hypot(dx,dy),m=a.r+c.r;
     if(d>0&&d<m){const push=(m-d)/2,nx=dx/d,ny=dy/d;if(!a.boss&&a.ai!=='turret'){a.x-=nx*push;a.y-=ny*push}if(!c.boss&&c.ai!=='turret'){c.x+=nx*push;c.y+=ny*push}}}
@@ -877,7 +1022,7 @@ function update(dt){
   for(const b2 of G.bolts)b2.life-=dt;G.bolts=G.bolts.filter(b2=>b2.life>0);
   G.shake=Math.max(0,G.shake-dt*30);G.flash=Math.max(0,G.flash-dt);
   // interact target
-  G.near=null;for(const k of KIOSKS)if(Math.hypot(p.x-k.x,p.y-k.y)<80)G.near=k;
+  G.near=null;for(const k of KIOSKS)if(Math.hypot(p.x-k.x,p.y-k.y)<80)G.near=k;for(const n of NPCS)if(Math.hypot(p.x-n.x,p.y-n.y)<75)G.near={id:'npc',npc:n,name:n.name};
   G.saveT-=dt;if(G.saveT<=0){G.saveT=4;save[POSKEY]={x:Math.round(p.x),y:Math.round(p.y)};if(G.fight){const L=G.fight.l;save[POSKEY]={x:Math.round(L.x),y:Math.round(L.y+L.R+60)}}persist()}
 }
 function kill(e,own){if(own){own.m.kills=(own.m.kills||0)+1;const lv=crewLevel(own.m);if(lv!==own.st.lv){buildCrew();toast(own.m.name+' reached crew level '+lv+'!')}}
@@ -886,6 +1031,8 @@ function kill(e,own){if(own){own.m.kills=(own.m.kills||0)+1;const lv=crewLevel(o
   const night=isNight()?1.25:1,total=Math.max(1,Math.round(e.coin*night*(own&&own.tr.lucky?1.6:1))),n=e.boss?24:Math.min(5,total);
   for(let i=0;i<n;i++){const a=Math.random()*TAU,s=rnd(60,e.boss?380:160);G.coins.push({x:e.x,y:e.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,v:Math.max(1,Math.round(total/n)),t:0})}
   gainXp(e.xp);if(!e.boss)tryRecruit(e,own);
+  if(save.bounty&&save.bounty.kind===e.kind&&save.bounty.have<save.bounty.need){save.bounty.have++;if(save.bounty.have>=save.bounty.need){persist();toast('Bounty complete! Go back to the bounty hunter for your reward.')}}
+  if(e.golden){save.pts++;persist();banner('GOLDEN BEAST CAUGHT','+1 upgrade point and a pile of coins',2000,'#ffc93c')}
   if(e.boss){const L=G.fight.l,bd=BOSS[e.kind],pts=L.sealed?10:5;save.bosses[e.kind]=true;save.pts+=pts;persist();
     G.slow=1.4;G.shake=20;G.eb=[];for(const m of G.ens)if(m.fm){m.hp=0;burst(m.x,m.y,10,m.col,150,4)}endFight();sfx.boom();
     const c=bossCount();
@@ -904,7 +1051,7 @@ function respawn(){if(G.fight)endFight();G.ens=G.ens.filter(e=>e.op);G.eb=[];G.c
   const p=G.p;p.x=0;p.y=130;p.hp=p.maxHp;p.inv=1.5;p.slowT=0;crewToPlayer(true);save[POSKEY]={x:0,y:130};persist();$('modal').hidden=true;state='play';syncUI();last=performance.now()}
 function openMenu(){if(state!=='play')return;state='paused';syncUI();
   showModal(`<h2>Paused</h2><p>${G.zone}</p><div class="row"><button class="btn" data-m="resume">Resume</button><button class="btn w" data-m="crew">Crew (${save.crew.length})</button><button class="btn p" data-m="upg">Upgrades${save.pts?' ('+save.pts+')':''}</button><button class="btn ghost" data-m="map">Map</button></div>
-  <p style="font-size:12px">The Shop is in the Home Village. Upgrades can be bought anywhere.</p><div class="row"><button class="btn ghost" data-m="sound">Sound: ${save.muted?'off':'on'}</button></div>`)}
+  <p style="font-size:12px">The Shop is in the Home Village. Upgrades can be bought anywhere.</p><div class="row"><button class="btn ghost" data-m="sound">Sound: ${save.muted?'off':'on'}</button><button class="btn ghost" data-m="admin">Admin</button></div>`)}
 function resume(){state='play';$('modal').hidden=true;syncUI();last=performance.now()}
 $('modal').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;const m=b.dataset.m;
   if(m==='resume')resume();else if(m==='respawn')respawn();
@@ -912,14 +1059,15 @@ $('modal').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(
   else if(m==='launch')launch(+b.dataset.w);
   else if(m==='crew'){$('modal').hidden=true;openPanel('crew')}
   else if(m==='map'){$('modal').hidden=true;state='play';openMap()}
+  else if(m==='admin'){openAdmin()}
   else if(m==='sound'){save.muted=!save.muted;persist();if(!save.muted)unlockAudio();b.textContent='Sound: '+(save.muted?'off':'on')}});
-function interact(){if(state!=='play'||!G.near)return;if(G.near.id==='rocket')openRocket();else openPanel(G.near.id)}
+function interact(){if(state!=='play'||!G.near)return;if(G.near.id==='npc')talkTo(G.near.npc);else if(G.near.id==='rocket')openRocket();else openPanel(G.near.id)}
 const worldOpen=w=>w===1||WORLD_BOSSES[w-1].some(k=>save.bosses[k]);
 const WINFO={1:{blurb:'Forests, deserts, swamps, snow and the Neon District.'},2:{blurb:'Aliens, UFOs and rock golems. Enemies around level 8. Moon Shop weapons.',lock:'Beat any boss on the island to fuel the rocket.'},3:{blurb:'Sandworms, martians, lava pools. Enemies around level 15. Hardest world.',lock:'Beat any boss on the Moon to unlock Mars.'}};
 function openRocket(){state='paused';syncUI();let h=`<h2>Rocket</h2><p>You are on ${WORLDS[WORLD_ID].name}. Your crew, coins, weapons and upgrades come with you.</p><div style="display:flex;flex-direction:column;gap:8px;text-align:left">`;
   for(const w of[1,2,3]){if(w===WORLD_ID)continue;const ok=worldOpen(w);h+=`<div class="card" style="padding:12px"><div class="kicker"><span>${WORLDS[w].name}</span>${ok?'':'<span>Locked</span>'}</div><p>${ok?WINFO[w].blurb:WINFO[w].lock}</p>${ok?`<div class="row"><button class="btn w" data-m="launch" data-w="${w}">Fly here</button></div>`:''}</div>`}
   showModal(h+`</div><div class="row"><button class="btn ghost" data-m="resume">Stay</button></div>`)}
-function launch(w){if(!w||w===WORLD_ID||!worldOpen(w))return;save[POSKEY]={x:0,y:-270};save.world=w;const nk=WORLDS[w].key;if(!save[nk])save[nk]={x:0,y:-270};persist();
+function launch(w,force){if(!w||w===WORLD_ID||(!force&&!worldOpen(w)))return;save[POSKEY]={x:0,y:-270};save.world=w;const nk=WORLDS[w].key;if(!save[nk])save[nk]={x:0,y:-270};persist();
   try{sessionStorage.setItem('fw3d-launch','1')}catch(e){}
   showModal(`<h2>Launching…</h2><p>Next stop: ${WORLDS[w].name}.</p>`);sfx.boom();
   setTimeout(()=>{location.hash=WORLDS[w].hash;location.reload()},900)}
@@ -1022,6 +1170,7 @@ function drawMapLayer(g,size,cx,cy,scale,big){
     g.fillStyle=done?'#2a3a2a':sealed?'#6b3a8a':'#ff4d6d';g.beginPath();g.arc(x,y,12*u,0,TAU);g.fill();g.strokeStyle='#000a';g.lineWidth=2;g.stroke();
     g.fillStyle='#fff';g.font=`${Math.round(11*u)}px Bungee, Impact, sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(done?'✓':sealed?'?':'!',x,y+1);
     if(big){g.fillStyle='#fff';g.font='13px Bungee, Impact, sans-serif';g.fillText(BOSS[L.kind].name+' · Lv'+L.lvl,x,y-24)}}
+  for(const n of NPCS){const q=npcHasQuest(n);g.fillStyle=q?'#ffc93c':'#ffffff';g.beginPath();g.arc(toX(n.x),toY(n.y),(q?6:4)*u,0,TAU);g.fill();if(big&&!n.bounty&&Math.hypot(n.x,n.y)>VILLAGE){g.font='12px Chakra Petch, sans-serif';g.textAlign='center';g.fillText(n.name,toX(n.x),toY(n.y)-12)}}
   if(big){for(const w of mapWps){g.strokeStyle='#9be15d';g.lineWidth=4;g.beginPath();g.arc(toX(w.x),toY(w.y),22,0,TAU);g.stroke()}
     g.fillStyle='#fff';g.font='14px Bungee, Impact, sans-serif';g.fillText('VILLAGE',toX(0),toY(0)-30)}
   const p=G.p,px=toX(p.x),py=toY(p.y),a=p.aim;g.fillStyle='#ffc93c';g.strokeStyle='#000';g.lineWidth=2;g.beginPath();g.moveTo(px+Math.cos(a)*10*u*1.4,py+Math.sin(a)*10*u*1.4);g.lineTo(px+Math.cos(a+2.4)*8*u*1.4,py+Math.sin(a+2.4)*8*u*1.4);g.lineTo(px+Math.cos(a-2.4)*8*u*1.4,py+Math.sin(a-2.4)*8*u*1.4);g.closePath();g.fill();g.stroke();
@@ -1301,6 +1450,20 @@ function makePersonMesh(type){const T=CREW_TYPES[type],g=new THREE.Group(),r=12,
 function makeCrewMesh(c){const T=CREW_TYPES[c.m.type];let g;if(T.person)g=makePersonMesh(c.m.type);else{const d=EN[c.m.type];g=makeEnemyMesh({draw:d.draw,col:d.col,r:d.r*.9,kind:c.m.type})}
   const top=Math.max(...c.m.traits.map(t=>TRAITS[t].tier));g.userData.ringC=top>=3?0xffc93c:top>=2?0x37a8ff:0x9be15d;
   const ring=part(g,TOR,bas(g.userData.ringC),0,2,0,c.r*1.3/(c.tr.giant?1.3:1));ring.rotation.x=Math.PI/2;ring.castShadow=false;g.userData.ring=ring;return g}
+function makeNpcMesh(n){const g=new THREE.Group(),r=13;
+  if(n.look==='robot'){part(g,BOX,lam(n.col),0,r*1.2,0,r*1.4,r*1.3,r*1.1);part(g,BOX,lam(0x8a97ab),0,r*2.3,0,r*.9,r*.7,r*.8);part(g,BOX,bas(0x7fe0ff),r*.46,r*2.35,0,r*.05,r*.2,r*.6);
+    for(const s2 of[-1,1]){const w=part(g,CYLC,lam(0x333333),0,r*.35,s2*r*.6,r*.35,r*.25,r*.35);w.rotation.x=Math.PI/2}part(g,CYL,lam(0x8a97ab),0,r*2.6,0,r*.05,r*.7,r*.05);part(g,SPHL,bas(0xff5a3c),0,r*3.35,0,r*.13);return g}
+  for(const s2 of[-1,1])part(g,CYL,lam(0x2a3446),0,0,s2*r*.4,r*.22,r*.75,r*.22);
+  part(g,SPH,lam(n.col),0,r*1.25,0,r*.8,r*.75,r*.75);part(g,SPH,lam(0xf1c9a0),r*.1,r*2.1,0,r*.52);for(const s2 of[-1,1])part(g,SPHL,bas(0x111111),r*.58,r*2.2,s2*r*.2,r*.08);
+  if(n.look==='elder'){part(g,SPH,lam(0xf4f4f4),r*.45,r*1.8,0,r*.3,r*.45,r*.32);part(g,CONE,lam(0x6a4a2a),0,r*2.3,0,r*.65,r*.75,r*.65);part(g,CYL,lam(0x5b3b22),r*.7,0,r*.8,r*.08,r*2.6,r*.08)}
+  if(n.look==='cap'){part(g,BOX,lam(new THREE.Color(n.col).multiplyScalar(.6).getHex()),r*.15,r*2.5,0,r*.95,r*.18,r*.9);part(g,BOX,lam(0x222222),r*.6,r*2.45,0,r*.5,r*.08,r*.7)}
+  if(n.look==='pilot'){part(g,HEMI,lam(0x8a5a2a),0,r*2.3,0,r*.56);part(g,BOX,bas(0x7fe0ff),r*.55,r*2.35,0,r*.08,r*.16,r*.7)}
+  if(n.look==='hood'){part(g,CONE,lam(0x4a3a2a),0,r*1.9,0,r*.75,r*1.1,r*.75);part(g,CYL,lam(0x5b3b22),r*.7,0,r*.8,r*.08,r*2.6,r*.08)}
+  if(n.look==='goggles'){part(g,BOX,bas(0x37e2ff),r*.55,r*2.25,0,r*.1,r*.18,r*.8);part(g,HEMI,lam(0x3a2a4a),0,r*2.35,0,r*.55)}
+  if(n.look==='helmet'){part(g,SPH,lam(0xcfe8ff,{transparent:true,opacity:.35}),r*.1,r*2.1,0,r*.75);part(g,BOX,lam(0x8a97ab),0,r*1.5,-r*.75,r*.6,r*.8,r*.3)}
+  return g}
+for(const n of NPCS){n.mesh=makeNpcMesh(n);n.mesh.position.set(n.x,0,n.y);scene.add(n.mesh);n.label=makeLabel(n.x,82,n.y,220);n.mark=new THREE.Mesh(OCT,bas(0xffc93c));n.mark.scale.set(7,12,7);scene.add(n.mark);n.face=Math.PI/2}
+const dropM=[];for(let i=0;i<3;i++){const g=new THREE.Group();part(g,BOX,lam(0x9a6a2a,{emissive:0x332200}),0,12,0,26,24,26);part(g,BOX,bas(0x9be15d),0,24.5,0,27,3,27);const beam=new THREE.Mesh(CYL,bas(0x9be15d,{transparent:true,opacity:.25,depthWrite:false}));beam.scale.set(8,300,8);g.add(beam);g.visible=false;scene.add(g);dropM.push(g)}
 /* ----- dynamic pools ----- */
 function pool(geo,mat,n){const m=new THREE.InstancedMesh(geo,mat,n);m.frustumCulled=false;for(let i=0;i<n;i++)m.setColorAt(i,tmpC.set(0xffffff));m.count=0;scene.add(m);return m}
 const PB=pool(SPHL,bas(0xffffff),500),EB=pool(SPHL,bas(0xffffff),900),EBG=pool(SPHL,bas(0xffffff,{transparent:true,opacity:.35,depthWrite:false}),900),PARTS=pool(BOX,bas(0xffffff),800);
@@ -1363,7 +1526,7 @@ function render3d(t,dt){
     if(e.boss)y+=(e.air||0)*120;
     m.position.set(e.x,y,e.y);m.rotation.y=-(e.face||0);
     const s=e.spawn>0?Math.max(.1,1-e.spawn/.8):1;m.scale.setScalar(s);
-    U.body.emissive.setHex(e.flash>0?0xffffff:G.freezeT>0?0x3a7bd5:0x000000);
+    U.body.emissive.setHex(e.flash>0?0xffffff:G.freezeT>0?0x3a7bd5:e.golden?0x8a6a00:0x000000);if(e.golden)m.scale.multiplyScalar(1.3);
     if(U.eye&&U.eyeC==null)U.eyeC=U.eye.color.getHex();if(U.eye&&!e.boss&&!e.passive)U.eye.color.setHex(e.aggro?0xff2020:U.eyeC);
     if(U.head)U.head.rotation.y=0;
     const sw=Math.min(1,moved/120)*Math.sin(t*16+(e.a||0))*.6;for(let i=0;i<U.legs.length;i++)U.legs[i].rotation.z=(i%2?sw:-sw)+(e.draw==='spider'||e.kind==='venom'||e.kind==='alienqueen'?-Math.cos((i/8)*TAU+.4)*1.2:0);
@@ -1432,8 +1595,13 @@ function render3d(t,dt){
       m.material.opacity=st===0?.15:st===1?(Math.sin(t*30)>0?.8:.25):1;m.material.color.setHex(st===2?0xff5577:0xff3355)})}
   for(const k of KIOSKS){if(k.id==='rocket'){const ok=[1,2,3].some(w=>w!==WORLD_ID&&worldOpen(w));k.glow.color.setHex(ok?0xffa040+((Math.sin(t*8)>0)?0x002000:0):0x444444);setLabel(k.label,'ROCKET',ok?'Travel between worlds':'Beat 1 boss to fuel it',ok?'#ffa040':'#8fa3c2')}else k.glow.color.set(k.col)}
   // compass arrow
-  arrow.visible=false;if(state==='play'&&!G.fight){let best=null,bd=1e9;for(const L of LAIRS){if(save.bosses[L.kind]||(L.sealed&&bossCount()<L.need))continue;const d=Math.hypot(L.x-p.x,L.y-p.y);if(d<bd){bd=d;best=L}}
-    if(best&&bd>420){const a=Math.atan2(best.y-p.y,best.x-p.x);arrow.visible=true;arrow.position.set(p.x+Math.cos(a)*52,4,p.y+Math.sin(a)*52);arrow.rotation.set(0,-a,0)}}
+  for(const n of NPCS){const d=Math.hypot(n.x-p.x,n.y-p.y),vis=Math.abs(n.x-p.x)<1300&&Math.abs(n.y-p.y)<1300;n.mesh.visible=n.label.visible=vis;
+    if(d<220){const want=Math.atan2(p.y-n.y,p.x-n.x);n.face+=arcDiff(want,n.face)*Math.min(1,dt*6)}n.mesh.rotation.y=-n.face;n.mesh.position.y=Math.abs(Math.sin(t*2+n.x))*1.5;
+    const q=npcHasQuest(n);n.mark.visible=vis&&q;if(q){n.mark.position.set(n.x,64+Math.sin(t*3)*5,n.y);n.mark.rotation.y=t*2}
+    setLabel(n.label,n.name.toUpperCase(),n.bounty?'Bounty hunter':q?'Has something to say':'',q?'#ffc93c':'#ffffff')}
+  let di=0;for(const d of G.drops){if(di>=dropM.length)break;const m=dropM[di++];m.visible=true;m.position.set(d.x,Math.max(0,300-d.t*600),d.y);m.rotation.y=t}for(let i=di;i<dropM.length;i++)dropM[i].visible=false;
+  arrow.visible=false;if(state==='play'&&!G.fight){let best=storyTarget(),bd=best?Math.hypot(best.x-p.x,best.y-p.y):1e9;if(!best)for(const L of LAIRS){if(save.bosses[L.kind]||(L.sealed&&bossCount()<L.need))continue;const d=Math.hypot(L.x-p.x,L.y-p.y);if(d<bd){bd=d;best=L}}
+    if(best&&bd>150){const a=Math.atan2(best.y-p.y,best.x-p.x);arrow.visible=true;arrow.position.set(p.x+Math.cos(a)*52,4,p.y+Math.sin(a)*52);arrow.rotation.set(0,-a,0)}}
   renderer.render(scene,camera);
   // overlay: joystick
   ovg.setTransform(DPR*S,0,0,DPR*S,0,0);ovg.clearRect(0,0,W,H);
@@ -1470,9 +1638,10 @@ function hud(dt){const p=G.p;$('hpFill').style.width=(100*p.hp/p.maxHp)+'%';setT
   const need=xpNeed(save.level);$('xpFill').style.width=(100*save.xp/need)+'%';setT('lvTxt','Level '+save.level);setT('xpTxt',save.xp+'/'+need+' XP');
   setT('coinTxt',String(save.coins));setT('mdTxt',String(save.md));$('mdChip').hidden=!(SPACE||save.md>0);setT('ptsTxt',String(save.pts));{const dn=G.crew.filter(c=>c.down>0).length;setT('crewTxt',save.crew.length+'/'+CREW_MAX+(dn?' · '+dn+' down':''))}setT('zoneTxt',G.zone);setT('dayTxt',SPACE?'Low gravity':isNight()?'Night':'Day');setT('potTxt',String(save.potions));
   $('tHeal').textContent='HEAL '+save.potions;
-  const ob=`${WORLDS[WORLD_ID].name}<br>Bosses <b>${bossCount()}/${LAIRS.length}</b> · Outposts <b>${OUTPOSTS.filter(o=>save.outposts[o.id]).length}/${OUTPOSTS.length}</b>`;if(hc.obj!==ob){hc.obj=ob;$('obj').innerHTML=ob}
+  const sst=storyStep(),sl=sst?`<br><span class="storyline">★ ${sst.goal}${sst.w!==WORLD_ID?' ('+WORLDS[sst.w].name+')':''}</span>`:'',bl=save.bounty?`<br>Bounty: <b>${save.bounty.have}/${save.bounty.need}</b> ${tname(save.bounty.kind)}s`:'';
+  const ob=`${WORLDS[WORLD_ID].name}${sl}${bl}<br>Bosses <b>${bossCount()}/${LAIRS.length}</b> · Outposts <b>${OUTPOSTS.filter(o=>save.outposts[o.id]).length}/${OUTPOSTS.length}</b>`;if(hc.obj!==ob){hc.obj=ob;$('obj').innerHTML=ob}
   if(G.fight)$('bossFill').style.width=Math.max(0,100*G.fight.boss.hp/G.fight.boss.maxHp)+'%';
-  const pr=$('prompt');if(G.near&&state==='play'){pr.hidden=false;const vb=G.near.id==='rocket'?'Board the ':'Open ',txt=(touchMode?'Tap: ':'')+vb+G.near.name;if(pr.dataset.t!==txt){pr.dataset.t=txt;pr.innerHTML=(touchMode?'':'<kbd>E</kbd>')+vb+G.near.name}}else pr.hidden=true;
+  const pr=$('prompt');if(G.near&&state==='play'){pr.hidden=false;const vb=G.near.id==='rocket'?'Board the ':G.near.id==='npc'?'Talk to ':'Open ',txt=(touchMode?'Tap: ':'')+vb+G.near.name;if(pr.dataset.t!==txt){pr.dataset.t=txt;pr.innerHTML=(touchMode?'':'<kbd>E</kbd>')+vb+G.near.name}}else pr.hidden=true;
   {const bs=$('abar').children;for(let i=0;i<bs.length;i++){const b=bs[i],cd=G.acd[i]||0,id=save.abil[i];b.querySelector('.cd').style.height=(cd>0?100*cd/(G.acdMax[i]||1):0)+'%';b.querySelector('.cdt').textContent=cd>.05?Math.ceil(cd):'';
     b.classList.toggle('on',!!id&&((id==='freezer'&&G.freezeT>0)||(id==='nodeath'&&G.godT>0)||(id==='overdrive'&&G.odT>0)))}}
   miniT-=dt;if(miniT<=0){miniT=.1;drawMini()}}
