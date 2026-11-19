@@ -92,6 +92,7 @@ button:focus-visible{outline:2px solid var(--tech);outline-offset:2px}
 .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
 .btn.big{font-size:16px;padding:13px 22px}
 .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.traits{display:flex;gap:4px;flex-wrap:wrap}.trait{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.4px}.t1{background:#24391f;color:#b9f0a0}.t2{background:#16304d;color:#8fd0ff}.t3{background:#4a3a10;color:#ffd96b}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px}
 .done{color:var(--wild);font-weight:700;font-size:12px;letter-spacing:1px}
 .pips{display:flex;gap:3px;flex-wrap:wrap}
 .pips i{width:14px;height:6px;border-radius:1px;background:#ffffff18}
@@ -129,6 +130,7 @@ canvas.prev{width:72px;height:72px;align-self:center}
       <div class="hrow">
         <div class="chip"><span class="coin"></span><b id="coinTxt">0</b></div>
         <div class="chip"><span class="gem"></span><b id="ptsTxt">0</b></div>
+        <div class="chip"><span class="lbl">Crew</span><b id="crewTxt">2/30</b></div>
         <div class="chip"><b id="zoneTxt" style="font-size:12px">Village</b></div>
         <div class="chip"><span class="lbl" id="dayTxt">Day</span></div>
       </div>
@@ -181,6 +183,7 @@ canvas.prev{width:72px;height:72px;align-self:center}
       <nav class="tabs">
         <button class="tab" data-tab="upgrades">Upgrades</button>
         <button class="tab" data-tab="shop">Shop</button>
+        <button class="tab" data-tab="crew">Crew</button>
       </nav>
       <div id="panelBody" class="sec"></div>
     </div>
@@ -241,7 +244,7 @@ const LAIRS=[
 ].map(l=>Object.assign(l,{x:Math.cos(l.a)*l.d,y:Math.sin(l.a)*l.d,R:360,lvl:lvlAt(l.d)}));
 const OUTPOSTS=[{a:-Math.PI/2-.5,d:2050},{a:.4,d:1450},{a:Math.PI/2+.35,d:2150},{a:Math.PI-.5,d:1550}]
   .map((o,i)=>({id:i,x:Math.cos(o.a)*o.d,y:Math.sin(o.a)*o.d,w:560,h:420,lvl:lvlAt(o.d),spawned:false}));
-const KIOSKS=[{id:'upgrades',x:-140,y:-90,name:'Upgrade Lab',col:'#c38bff'},{id:'shop',x:140,y:-90,name:'Shop',col:'#ffc93c'}];
+const KIOSKS=[{id:'upgrades',x:-140,y:-90,name:'Upgrade Lab',col:'#c38bff'},{id:'shop',x:140,y:-90,name:'Shop',col:'#ffc93c'},{id:'crew',x:0,y:-210,name:'Recruit Hall',col:'#9be15d'}];
 
 // obstacles in a chunk grid
 const grid=new Map(),OBS=[];
@@ -398,6 +401,95 @@ function newGame(){
     buddy:{x:pos.x,y:pos.y,t:0,a:0},ens:[],pb:[],eb:[],parts:[],texts:[],coins:[],tele:[],beams:[],bolts:[],fight:null,near:null,zone:''};
 }
 newGame();
+/* ================= CREW + TRAITS ================= */
+const CREW_MAX=30,CREW_MIN=2;
+const CREW_TYPES={
+  ranger:{name:'Ranger',person:1,role:'ranged',hp:60,dmg:8,cd:.7,spd:235,range:320,col:'#5fb85a',bcol:'#b6ff7a',price:150,desc:'Shoots from a distance.'},
+  brawler:{name:'Brawler',person:1,role:'melee',hp:120,dmg:14,cd:.8,spd:245,col:'#e0663c',price:150,desc:'Charges in and punches hard.'},
+  medic:{name:'Medic',person:1,role:'healer',hp:75,dmg:5,cd:1.1,spd:235,range:240,heal:9,col:'#f2f5fa',bcol:'#ff8fa0',price:250,desc:'Heals you and the crew.'},
+  engineer:{name:'Engineer',person:1,role:'ranged',hp:70,dmg:11,cd:.85,spd:225,range:360,col:'#e8b52e',bcol:'#ffd36b',price:300,desc:'Heavy tech blaster with long range.'},
+  wolf:{name:'Wolf',role:'melee',hp:85,dmg:12,cd:.6,spd:285},snowwolf:{name:'Snow Wolf',role:'melee',hp:90,dmg:12,cd:.6,spd:285},
+  boar:{name:'Boar',role:'melee',hp:150,dmg:16,cd:1,spd:240},yeti:{name:'Yeti',role:'melee',hp:240,dmg:22,cd:1.1,spd:230},
+  crab:{name:'Crab',role:'melee',hp:80,dmg:10,cd:.7,spd:250},robodog:{name:'Robo-dog',role:'melee',hp:110,dmg:13,cd:.7,spd:270},
+  hawk:{name:'Hawk',role:'melee',hp:60,dmg:10,cd:.5,spd:330},vulture:{name:'Vulture',role:'melee',hp:70,dmg:11,cd:.55,spd:310},rabbit:{name:'Rabbit',role:'melee',hp:45,dmg:7,cd:.45,spd:330},
+  scorpion:{name:'Scorpion',role:'ranged',hp:85,dmg:10,cd:1,spd:240,range:270,bcol:'#b6ff5a'},frog:{name:'Frog',role:'ranged',hp:75,dmg:9,cd:.9,spd:250,range:260,bcol:'#9dff6a'},
+  spider:{name:'Spider',role:'ranged',hp:65,dmg:7,cd:.8,spd:245,range:250,bcol:'#e8f6ff'},drone:{name:'Drone',role:'ranged',hp:60,dmg:9,cd:.75,spd:260,range:310,bcol:'#59e6ff'},
+  deer:{name:'Deer',role:'healer',hp:80,dmg:5,cd:1.2,spd:280,range:200,heal:7,bcol:'#c9f7a0'},penguin:{name:'Penguin',role:'healer',hp:65,dmg:5,cd:1.2,spd:230,range:200,heal:6,bcol:'#bfe6ff'},
+};
+const TRAITS={
+  brave:{name:'Brave',desc:'+25% damage',tier:1},tough:{name:'Tough',desc:'+50% max HP',tier:1},
+  swift:{name:'Swift',desc:'+30% speed, attacks 15% faster',tier:1},quick:{name:'Quick Recovery',desc:'Gets back up 3× faster',tier:1},
+  sharp:{name:'Sharpshooter',desc:'+40% attack range',tier:2},lucky:{name:'Lucky',desc:'Its takedowns drop +60% coins',tier:2},
+  vamp:{name:'Vampiric',desc:'Heals 30% of the damage it deals',tier:2},crit:{name:'Ferocious',desc:'20% chance to deal triple damage',tier:2},
+  caring:{name:'Caring',desc:'Heals you and nearby crew 2 HP/s',tier:2},
+  rally:{name:'Rallying',desc:'You deal +6% damage while it stands',tier:3},beast:{name:'Beastfriend',desc:'+5% chance beaten animals join',tier:3},
+  giant:{name:'Giant',desc:'Double HP and bigger, 15% slower',tier:3},
+};
+const TIER_NAME=['','Common','Rare','Epic'];
+const NAMES_P=['Juno','Kai','Mira','Nox','Rio','Zane','Ivy','Bo','Luca','Sage','Tess','Finn','Ada','Remy','Pip','Vex','Nova','Ezra','Lio','Wren','Oak','Rue','Jax','Cleo'];
+const NAMES_A=['Rex','Biscuit','Fang','Pebble','Mochi','Tank','Ziggy','Nugget','Shadow','Waffles','Bolt','Fuzz','Chomp','Pickles','Storm','Noodle','Ace','Gizmo','Taco','Blitz','Sprout','Muffin','Echo','Bean'];
+function rollTraits(){const n=Math.random()<.35?2:1,out=[];let guard=0;
+  while(out.length<n&&guard++<50){const r=Math.random(),tier=r<.6?1:r<.9?2:3;const pool=Object.keys(TRAITS).filter(k=>TRAITS[k].tier===tier&&!out.includes(k));if(pool.length)out.push(pick(pool))}return out}
+function newMember(type,traits){const T=CREW_TYPES[type],used=new Set(save.crew.map(m=>m.name));const list=(T.person?NAMES_P:NAMES_A).filter(n=>!used.has(n));
+  newMember.n=(newMember.n||0)+1;return{id:Date.now().toString(36)+'-'+newMember.n+'-'+Math.random().toString(36).slice(2,6),name:list.length?pick(list):pick(T.person?NAMES_P:NAMES_A)+' '+(save.crew.length+1),type,traits:traits||rollTraits(),kills:0}}
+if(!Array.isArray(save.crew)||save.crew.length<CREW_MIN){save.crew=Array.isArray(save.crew)?save.crew:[];
+  if(!save.crew.some(m=>m.type==='wolf'))save.crew.push({id:'starter-rex',name:'Rex',type:'wolf',traits:['brave'],kills:0});
+  if(save.crew.length<CREW_MIN)save.crew.push({id:'starter-juno',name:'Juno',type:'ranger',traits:['sharp'],kills:0});persist()}
+const crewLevel=m=>Math.min(10,1+Math.floor((m.kills||0)/8));
+function crewStats(m){const T=CREW_TYPES[m.type],tr={};for(const t of m.traits)tr[t]=1;const lv=crewLevel(m),lm=1+.08*(lv-1);
+  return{hp:Math.round(T.hp*lm*(tr.tough?1.5:1)*(tr.giant?2:1)),dmg:T.dmg*lm*(tr.brave?1.25:1),cd:T.cd/(tr.swift?1.15:1),spd:T.spd*(tr.swift?1.3:1)*(tr.giant?.85:1),
+    range:(T.range||0)*(tr.sharp?1.4:1),heal:(T.heal||0)*lm,tr,lv,role:T.role}}
+function buildCrew(){const old=new Map((G.crew||[]).map(r=>[r.m.id,r]));
+  G.crew=save.crew.map((m,i)=>{let c=old.get(m.id);const st=crewStats(m),T=CREW_TYPES[m.type];
+    if(!c){const a=i*2.4;c={m,x:G.p.x+Math.cos(a)*70,y:G.p.y+Math.sin(a)*70,hp:st.hp,cd:Math.random(),down:0,inv:0,face:0,healT:Math.random(),lunge:0}}
+    c.m=m;c.st=st;c.tr=st.tr;c.maxHp=st.hp;c.hp=Math.min(c.hp,c.maxHp);c.slot=i;c.r=(T.person?12:(EN[m.type]?EN[m.type].r*.9:12))*(st.tr.giant?1.3:1);return c})}
+function crewToPlayer(heal){for(const c of G.crew){const a=c.slot*2.4,r=55+20*Math.sqrt(c.slot);c.x=G.p.x+Math.cos(a)*r;c.y=G.p.y+Math.sin(a)*r;collide(c);if(G.fight)arenaClamp(c);if(heal){c.hp=c.maxHp;c.down=0}}}
+function hurtCrew(c,d){if(c.down>0||c.inv>0)return;c.hp-=d;c.inv=.5;burst(c.x,c.y,4,'#ff4d6d',90,3);
+  if(c.hp<=0){c.hp=0;c.down=c.tr.quick?5:15;burst(c.x,c.y,14,'#8fa3c2',140,4)}}
+function hitEnemy(e,dmg,own,bl){if(e.hp<=0)return;e.hp-=dmg;e.flash=.08;e.aggro=true;burst(bl?bl.x:e.x,bl?bl.y:e.y,3,bl?bl.col:'#ffffff',90,3);
+  if(own&&own.tr.vamp)own.hp=Math.min(own.maxHp,own.hp+dmg*.3);if(e.hp<=0)kill(e,own)}
+function crewDmg(c){let d=c.st.dmg;if(c.tr.crit&&Math.random()<.2){d*=3;burst(c.x,c.y,6,'#ffc93c',120,3)}return d}
+function tryRecruit(e,own){
+  if(e.boss||e.fm||e.kind==='turret'||e.kind==='spiderling'||!CREW_TYPES[e.kind]||save.crew.length>=CREW_MAX)return;
+  let ch=e.passive?.2:.12;for(const c of G.crew)if(c.tr.beast&&c.down<=0)ch+=.05;ch=Math.min(.35,ch);
+  if(Math.random()>=ch)return;
+  const m=newMember(e.kind);save.crew.push(m);persist();buildCrew();const c=G.crew[G.crew.length-1];c.x=e.x;c.y=e.y;
+  burst(e.x,e.y,30,'#9be15d',220,5);sfx.lvl();
+  toast(`${m.name} the ${CREW_TYPES[m.type].name} joined your crew! Traits: ${m.traits.map(t=>TRAITS[t].name).join(', ')} (${save.crew.length}/${CREW_MAX})`);
+}
+function updateCrew(dt){
+  const p=G.p;let rally=0;
+  for(const c of G.crew){
+    c.lunge=Math.max(0,c.lunge-dt);
+    if(c.down>0){c.down-=dt;if(c.down<=0){c.hp=c.maxHp;burst(c.x,c.y,16,'#9be15d',150,4)}continue}
+    if(c.tr.rally)rally++;
+    c.inv=Math.max(0,c.inv-dt);c.cd-=dt;c.healT-=dt;
+    if(Math.hypot(c.x,c.y)<VILLAGE)c.hp=Math.min(c.maxHp,c.hp+25*dt);
+    const dP=Math.hypot(c.x-p.x,c.y-p.y);
+    if(dP>750&&!G.fight){const a=Math.random()*TAU;c.x=p.x+Math.cos(a)*60;c.y=p.y+Math.sin(a)*60;collide(c)}
+    if(c.tr.caring){p.hp=Math.min(p.maxHp,p.hp+2*dt);for(const o of G.crew)if(o!==c&&o.down<=0&&Math.abs(o.x-c.x)<200&&Math.hypot(o.x-c.x,o.y-c.y)<200)o.hp=Math.min(o.maxHp,o.hp+2*dt)}
+    // healer pulse
+    if(c.st.role==='healer'&&c.healT<=0){c.healT=1.2;let best=null,br=.98;
+      if(dP<c.st.range+60&&p.hp/p.maxHp<br){best=p;br=p.hp/p.maxHp}
+      for(const o of G.crew){if(o.down>0)continue;const r=o.hp/o.maxHp;if(r<br&&Math.hypot(o.x-c.x,o.y-c.y)<c.st.range+60){best=o;br=r}}
+      if(best){best.hp=Math.min(best.maxHp,best.hp+c.st.heal*(best===p?1.5:1));burst(best.x,best.y,10,'#7dffa0',120,4)}}
+    // pick a target near the player
+    let tgt=null,bd=c.st.role==='melee'?360:c.st.range+80;
+    for(const e of G.ens){if(e.passive||e.spawn>0||e.hp<=0)continue;const dpe=Math.hypot(e.x-p.x,e.y-p.y);if(dpe>650||(!e.aggro&&!e.boss&&dpe>420))continue;const d=Math.hypot(e.x-c.x,e.y-c.y);if(d<bd){bd=d;tgt=e}}
+    const sa=c.slot*2.39996,sr=55+20*Math.sqrt(c.slot);let tx=p.x+Math.cos(sa)*sr,ty=p.y+Math.sin(sa)*sr,spd=c.st.spd;
+    if(tgt){const d=bd,ang=Math.atan2(tgt.y-c.y,tgt.x-c.x);c.face=ang;
+      if(c.st.role==='melee'){tx=tgt.x;ty=tgt.y;spd*=1.1;if(d<c.r+tgt.r+10){tx=c.x;ty=c.y;if(c.cd<=0){c.cd=c.st.cd;c.lunge=.15;hitEnemy(tgt,crewDmg(c),c,null)}}}
+      else{if(c.st.role==='ranged'){const want=d>c.st.range*.85?1:d<c.st.range*.45?-1:0;tx=c.x+Math.cos(ang)*want*80;ty=c.y+Math.sin(ang)*want*80;if(want===0){tx=c.x;ty=c.y}}
+        if(d<c.st.range+30&&c.cd<=0){c.cd=c.st.cd;const T=CREW_TYPES[c.m.type],s=560;G.pb.push({x:c.x,y:c.y,vx:Math.cos(ang)*s,vy:Math.sin(ang)*s,spd:s,r:4,dmg:crewDmg(c),life:(c.st.range+60)/s,col:T.bcol||'#b6ff7a',own:c})}}}
+    const dx=tx-c.x,dy=ty-c.y,dl=Math.hypot(dx,dy);
+    if(dl>6){const k=Math.min(spd,dl*4)/dl;c.x+=dx*k*dt;c.y+=dy*k*dt;if(!tgt)c.face=Math.atan2(dy,dx)}
+    collide(c);if(G.fight)arenaClamp(c);
+  }
+  // keep crew from stacking
+  for(let i=0;i<G.crew.length;i++)for(let j=i+1;j<G.crew.length;j++){const a=G.crew[i],b=G.crew[j],dx=b.x-a.x,dy=b.y-a.y;if(Math.abs(dx)>40||Math.abs(dy)>40)continue;const d=Math.hypot(dx,dy),m=a.r+b.r;if(d>0&&d<m){const k=(m-d)/2/d;a.x-=dx*k;a.y-=dy*k;b.x+=dx*k;b.y+=dy*k}}
+  G.rally=rally;
+}
+buildCrew();
 function refreshStats(){const st=stats(),p=G.p;const frac=p.hp/p.maxHp;G.st=st;p.maxHp=st.maxHp;p.hp=Math.min(st.maxHp,Math.max(p.hp,st.maxHp*frac))}
 function syncUI(){const play=state==='play';$('touch').hidden=!(touchMode&&play);$('hudWrap').hidden=state==='title';}
 
@@ -447,7 +539,7 @@ function spawnOutpost(o){o.spawned=true;const n=2+Math.floor(o.lvl/2);const spot
 function fire(){const p=G.p,w=WEAP[save.weapon]||WEAP.blaster,st=G.st,extra=st.multi,shots=[];
   if(w.n>1){const n=w.n+extra*2,sp=w.spread+extra*.12;for(let i=0;i<n;i++)shots.push(p.aim+(i/(n-1)-.5)*sp+rnd(-.04,.04))}
   else{const n=1+extra;for(let i=0;i<n;i++)shots.push(p.aim+(i-(n-1)/2)*.13)}
-  for(const a of shots){const cx=Math.cos(a),cy=Math.sin(a);G.pb.push({x:p.x+cx*20,y:p.y+cy*20,vx:cx*w.spd,vy:cy*w.spd,spd:w.spd,r:w.r,dmg:w.dmg*st.dmg,life:w.life||1.1,hit:w.pierce?new Set():null,homing:w.homing,col:w.col,rail:w.pierce})}
+  for(const a of shots){const cx=Math.cos(a),cy=Math.sin(a);G.pb.push({x:p.x+cx*20,y:p.y+cy*20,vx:cx*w.spd,vy:cy*w.spd,spd:w.spd,r:w.r,dmg:w.dmg*st.dmg*(1+.06*(G.rally||0)),life:w.life||1.1,hit:w.pierce?new Set():null,homing:w.homing,col:w.col,rail:w.pierce})}
   p.fireT=w.delay*st.rate;sfx.shoot()}
 function updatePlayer(dt){const p=G.p;let mx=0,my=0;
   if(keys.KeyA||keys.ArrowLeft)mx--;if(keys.KeyD||keys.ArrowRight)mx++;if(keys.KeyW||keys.ArrowUp)my--;if(keys.KeyS||keys.ArrowDown)my++;
@@ -572,8 +664,8 @@ const ATK={
 function startFight(L){
   const bd=BOSS[L.kind],m=1+.22*(L.lvl-1);
   G.ens=G.ens.filter(e=>e.op||Math.hypot(e.x-L.x,e.y-L.y)>L.R+250);G.eb=[];
-  const e={kind:L.kind,boss:true,x:L.x,y:L.y-150,r:bd.r,hp:bd.hp*m,maxHp:bd.hp*m,col:bd.col,dmg:25,t:0,cool:1.6,atk:null,flash:0,spawn:0,last:'',coin:60+30*L.lvl,xp:120+40*L.lvl};
-  G.ens.push(e);G.fight={l:L,boss:e};
+  const e={kind:L.kind,boss:true,x:L.x,y:L.y-150,r:bd.r,hp:bd.hp*m*(1+.06*G.crew.length),maxHp:bd.hp*m*(1+.06*G.crew.length),col:bd.col,dmg:25,t:0,cool:1.6,atk:null,flash:0,spawn:0,last:'',coin:60+30*L.lvl,xp:120+40*L.lvl};
+  G.ens.push(e);G.fight={l:L,boss:e};crewToPlayer();
   $('bossName').textContent=bd.name;$('bossTitle').textContent=bd.title+' · Lv '+L.lvl;$('bossbar').hidden=false;
   banner(bd.name,'The lair seals shut. Win to get out.',1800,bd.theme==='tech'?'#ff3355':'#ff8a3d');sfx.boom();
 }
@@ -584,7 +676,7 @@ function isNight(){const ph=(save.time/300)%1;return ph>.38&&ph<.88}
 function darkness(){const ph=(save.time/300)%1,v=(1-Math.cos((ph-.13)*TAU))/2;return clamp((v-.3)/.7,0,1)*.72}
 function update(dt){
   const p=G.p;G.t+=dt;save.time+=dt;
-  updatePlayer(dt);
+  updatePlayer(dt);updateCrew(dt);
   // zone + lairs
   const b=biomeAt(p.x,p.y),dist=Math.hypot(p.x,p.y);G.zone=b==='village'?'Home Village':BIOME[b].name+' · Lv '+lvlAt(dist);
   if(!G.fight)for(const L of LAIRS){const d=Math.hypot(p.x-L.x,p.y-L.y);if(save.bosses[L.kind])continue;
@@ -605,7 +697,7 @@ function update(dt){
   for(const e of G.ens)updateEnemy(e,dt);
   for(let i=0;i<G.ens.length;i++)for(let j=i+1;j<G.ens.length;j++){const a=G.ens[i],c=G.ens[j],dx=c.x-a.x,dy=c.y-a.y;if(Math.abs(dx)>60||Math.abs(dy)>60)continue;const d=Math.hypot(dx,dy),m=a.r+c.r;
     if(d>0&&d<m){const push=(m-d)/2,nx=dx/d,ny=dy/d;if(!a.boss&&a.ai!=='turret'){a.x-=nx*push;a.y-=ny*push}if(!c.boss&&c.ai!=='turret'){c.x+=nx*push;c.y+=ny*push}}}
-  for(const e of G.ens){if(e.spawn>0||e.passive||e.air>.3||(!e.aggro&&!e.boss))continue;if(Math.hypot(e.x-p.x,e.y-p.y)<e.r+p.r-3)hurt(e.boss?22*curDmul():e.dmg)}
+  for(const e of G.ens){if(e.spawn>0||e.passive||e.air>.3||(!e.aggro&&!e.boss))continue;if(Math.hypot(e.x-p.x,e.y-p.y)<e.r+p.r-3)hurt(e.boss?22*curDmul():e.dmg);for(const c of G.crew){if(c.down<=0&&Math.abs(c.x-e.x)<e.r+c.r&&Math.hypot(c.x-e.x,c.y-e.y)<e.r+c.r-2)hurtCrew(c,(e.boss?22*curDmul():e.dmg)*.7)}}
   // despawn far
   G.ens=G.ens.filter(e=>e.boss||e.op||e.fm||Math.hypot(e.x-p.x,e.y-p.y)<1500);
   // player bullets
@@ -613,8 +705,7 @@ function update(dt){
     if(bl.homing){const t=nearestEnemy(bl.x,bl.y,380,true);if(t){const ca=Math.atan2(bl.vy,bl.vx),ta=Math.atan2(t.y-bl.y,t.x-bl.x),df=((ta-ca+Math.PI*3)%TAU)-Math.PI,na=ca+clamp(df,-5*dt,5*dt);bl.vx=Math.cos(na)*bl.spd;bl.vy=Math.sin(na)*bl.spd}}
     bl.x+=bl.vx*dt;bl.y+=bl.vy*dt;bl.life-=dt;if(bl.life<=0){bl.dead=true;continue}
     for(const e of G.ens){if(e.spawn>0||e.hp<=0)continue;if(bl.hit&&bl.hit.has(e))continue;
-      if(Math.abs(e.x-bl.x)<e.r+bl.r&&Math.hypot(e.x-bl.x,e.y-bl.y)<e.r+bl.r){e.hp-=bl.dmg;e.flash=.08;e.aggro=true;if(Math.random()<.5||bl.dmg>20)ftxt(e.x+rnd(-8,8),e.y-e.r-4,Math.round(bl.dmg),'#fff');burst(bl.x,bl.y,3,bl.col,90,3);
-        if(e.hp<=0)kill(e);if(bl.hit)bl.hit.add(e);else{bl.dead=true;break}}}}
+      if(Math.abs(e.x-bl.x)<e.r+bl.r&&Math.hypot(e.x-bl.x,e.y-bl.y)<e.r+bl.r){hitEnemy(e,bl.dmg,bl.own,bl);if(bl.hit)bl.hit.add(e);else{bl.dead=true;break}}}}
   G.pb=G.pb.filter(x=>!x.dead);G.ens=G.ens.filter(e=>e.hp>0);
   // enemy bullets
   const safe=dist<VILLAGE;
@@ -623,7 +714,8 @@ function update(dt){
     bl.x+=bl.vx*dt;bl.y+=bl.vy*dt;bl.life-=dt;
     if(bl.life<=0||Math.hypot(bl.x,bl.y)<VILLAGE){bl.dead=true;continue}
     if(G.fight){const L=G.fight.l;if(Math.hypot(bl.x-L.x,bl.y-L.y)>L.R+10){bl.dead=true;continue}}
-    if(!safe&&Math.hypot(p.x-bl.x,p.y-bl.y)<p.r+bl.r-2&&p.inv<=0&&p.dashT<=0){hurt(bl.dmg);if(bl.slow)p.slowT=1.6;bl.dead=true}}
+    if(!safe&&Math.hypot(p.x-bl.x,p.y-bl.y)<p.r+bl.r-2&&p.inv<=0&&p.dashT<=0){hurt(bl.dmg);if(bl.slow)p.slowT=1.6;bl.dead=true}
+    if(!bl.dead)for(const c of G.crew){if(c.down<=0&&Math.abs(c.x-bl.x)<c.r+bl.r&&Math.hypot(c.x-bl.x,c.y-bl.y)<c.r+bl.r){hurtCrew(c,bl.dmg*.8);bl.dead=true;break}}}
   G.eb=G.eb.filter(x=>!x.dead);
   for(const t of G.tele){t.t+=dt;if(t.follow){t.x=t.follow.x;t.y=t.follow.y}if(t.t>=t.dur){t.dead=true;if(t.done&&G.fight)t.done(t)}}G.tele=G.tele.filter(t=>!t.dead);
   for(const bm of G.beams){bm.t+=dt;if(bm.o.hp<=0){bm.dead=true;continue}if(bm.t>bm.warn)bm.a+=bm.rot*dt;if(bm.t>bm.warn+bm.dur){bm.dead=true;continue}
@@ -641,11 +733,11 @@ function update(dt){
   G.near=null;for(const k of KIOSKS)if(Math.hypot(p.x-k.x,p.y-k.y)<80)G.near=k;
   G.saveT-=dt;if(G.saveT<=0){G.saveT=4;save.pos={x:Math.round(p.x),y:Math.round(p.y)};if(G.fight){const L=G.fight.l;save.pos={x:Math.round(L.x),y:Math.round(L.y+L.R+60)}}persist()}
 }
-function kill(e){
+function kill(e,own){if(own){own.m.kills=(own.m.kills||0)+1;const lv=crewLevel(own.m);if(lv!==own.st.lv){buildCrew();toast(own.m.name+' reached crew level '+lv+'!')}}
   sfx.kill();burst(e.x,e.y,e.boss?80:14,e.col,e.boss?420:200,e.boss?8:5);
-  const night=isNight()?1.25:1,total=Math.max(1,Math.round(e.coin*night)),n=e.boss?24:Math.min(5,total);
+  const night=isNight()?1.25:1,total=Math.max(1,Math.round(e.coin*night*(own&&own.tr.lucky?1.6:1))),n=e.boss?24:Math.min(5,total);
   for(let i=0;i<n;i++){const a=Math.random()*TAU,s=rnd(60,e.boss?380:160);G.coins.push({x:e.x,y:e.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,v:Math.max(1,Math.round(total/n)),t:0})}
-  gainXp(e.xp);
+  gainXp(e.xp);if(!e.boss)tryRecruit(e,own);
   if(e.boss){const L=G.fight.l,bd=BOSS[e.kind],pts=e.kind==='omega'?10:5;save.bosses[e.kind]=true;save.pts+=pts;persist();
     G.slow=1.4;G.shake=20;G.eb=[];for(const m of G.ens)if(m.fm){m.hp=0;burst(m.x,m.y,10,m.col,150,4)}endFight();sfx.boom();
     const c=bossCount();
@@ -661,14 +753,15 @@ function knockedOut(){state='dead';syncUI();persist();
   <div class="row"><button class="btn w" data-m="respawn">Wake up in the village</button></div>`)}
 function respawn(){if(G.fight)endFight();G.ens=G.ens.filter(e=>e.op);G.eb=[];G.coins=[];G.tele=[];G.beams=[];
   for(const o of OUTPOSTS)if(o.spawned){o.spawned=false;G.ens=G.ens.filter(e=>e.op!==o.id+1)}
-  const p=G.p;p.x=0;p.y=130;p.hp=p.maxHp;p.inv=1.5;p.slowT=0;save.pos={x:0,y:130};persist();$('modal').hidden=true;state='play';syncUI();last=performance.now()}
+  const p=G.p;p.x=0;p.y=130;p.hp=p.maxHp;p.inv=1.5;p.slowT=0;crewToPlayer(true);save.pos={x:0,y:130};persist();$('modal').hidden=true;state='play';syncUI();last=performance.now()}
 function openMenu(){if(state!=='play')return;state='paused';syncUI();
-  showModal(`<h2>Paused</h2><p>${G.zone}</p><div class="row"><button class="btn" data-m="resume">Resume</button><button class="btn p" data-m="upg">Upgrades${save.pts?' ('+save.pts+')':''}</button><button class="btn ghost" data-m="map">Map</button></div>
+  showModal(`<h2>Paused</h2><p>${G.zone}</p><div class="row"><button class="btn" data-m="resume">Resume</button><button class="btn w" data-m="crew">Crew (${save.crew.length})</button><button class="btn p" data-m="upg">Upgrades${save.pts?' ('+save.pts+')':''}</button><button class="btn ghost" data-m="map">Map</button></div>
   <p style="font-size:12px">The Shop is in the Home Village. Upgrades can be bought anywhere.</p><div class="row"><button class="btn ghost" data-m="sound">Sound: ${save.muted?'off':'on'}</button></div>`)}
 function resume(){state='play';$('modal').hidden=true;syncUI();last=performance.now()}
 $('modal').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;const m=b.dataset.m;
   if(m==='resume')resume();else if(m==='respawn')respawn();
   else if(m==='upg'){$('modal').hidden=true;openPanel('upgrades')}
+  else if(m==='crew'){$('modal').hidden=true;openPanel('crew')}
   else if(m==='map'){$('modal').hidden=true;state='play';openMap()}
   else if(m==='sound'){save.muted=!save.muted;persist();if(!save.muted)unlockAudio();b.textContent='Sound: '+(save.muted?'off':'on')}});
 function interact(){if(state!=='play'||!G.near)return;openPanel(G.near.id)}
@@ -681,11 +774,12 @@ function closePanel(){$('panel').hidden=true;refreshStats();state='play';syncUI(
 $('closePanel').onclick=closePanel;
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;renderPanel()});
 $('muteBtn').onclick=()=>{save.muted=!save.muted;persist();if(!save.muted)unlockAudio();renderPanel()};
+let relConfirm=null;const roleName=r=>r==='melee'?'Fighter':r==='ranged'?'Shooter':'Healer';const recruitPrice=id=>CREW_TYPES[id].price+12*save.crew.length;
 const price=n=>`<span class="price"><span class="coin"></span>${n}</span>`;
 function renderPanel(){
   const shopOk=inVillage();if(tab==='shop'&&!shopOk)tab='upgrades';
   $('wCoins').textContent=save.coins;$('wPts').textContent=save.pts;$('muteBtn').textContent='Sound: '+(save.muted?'off':'on');
-  $('panelTitle').textContent=tab==='shop'?'Village Shop':'Upgrade Lab';
+  $('panelTitle').textContent=tab==='shop'?'Village Shop':tab==='crew'?'Your Crew':'Upgrade Lab';
   document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('on',b.dataset.tab===tab);if(b.dataset.tab==='shop'){b.disabled=!shopOk;b.title=shopOk?'':'Go to the Home Village to shop'}});
   let h='';
   if(tab==='upgrades'){
@@ -694,6 +788,20 @@ function renderPanel(){
       h+=`<div class="card"><div class="kicker"><span>${u.name}</span><span>Lv ${l}/${u.max}</span></div><p>${u.desc}</p><div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<l?'on':''}"></i>`).join('')}</div>
       <div class="row">${max?'<span class="done">MAXED</span>':`<button class="btn p" data-act="up" data-id="${u.id}" ${save.pts<c?'disabled':''}>Upgrade · ${c} pt${c>1?'s':''}</button>`}</div></div>`}
     const st=stats();h+=`</div><div class="help"><div><b>Max HP</b> ${st.maxHp}</div><div><b>Damage</b> ×${st.dmg.toFixed(2)}</div><div><b>Fire rate</b> ×${(1/st.rate).toFixed(2)}</div><div><b>Speed</b> ${Math.round(st.spd)}</div><div><b>Dash cooldown</b> ${st.dashCd.toFixed(2)}s</div><div><b>Regen</b> ${st.regen.toFixed(1)} HP/s</div></div>`;
+  }else if(tab==='crew'){
+    const n=save.crew.length;
+    h+=`<p class="note">Crew <b>${n}/${CREW_MAX}</b>. Animals you beat sometimes join you (about 1 in 8). Hire people at the Recruit Hall in the Home Village. Members level up from their takedowns. Knocked-down members get back up after 15 seconds.${G.rally?` Rallying bonus active: <b>+${G.rally*6}% damage</b>.`:''}</p>`;
+    if(shopOk&&n<CREW_MAX){h+=`<h3>Recruit Hall</h3><div class="grid">`;for(const id of['ranger','brawler','medic','engineer']){const T=CREW_TYPES[id],pr=recruitPrice(id);
+      h+=`<div class="card"><div class="kicker"><span><i class="dot" style="background:${T.col}"></i>${roleName(T.role)}</span><span>${T.hp} HP · ${T.dmg} dmg</span></div><h4>${T.name}</h4><p>${T.desc} Arrives with 1–2 random traits.</p><div class="row"><button class="btn g" data-act="hire" data-id="${id}" ${save.coins<pr?'disabled':''}>Hire</button>${price(pr)}</div></div>`}h+='</div>'}
+    else if(!shopOk)h+=`<p class="note">Walk to the Recruit Hall in the Home Village to hire people.</p>`;
+    h+=`<h3>Traits</h3><p class="note"><span class="trait t1">Common</span> <span class="trait t2">Rare</span> <span class="trait t3">Epic</span> · A member's ring color shows its best trait.</p><h3>Members</h3><div class="grid">`;
+    for(const m of save.crew){const T=CREW_TYPES[m.type],st=crewStats(m),c=G.crew.find(x=>x.m.id===m.id);
+      h+=`<div class="card"><div class="kicker"><span><i class="dot" style="background:${T.col||EN[m.type].col}"></i>${T.name} · ${roleName(T.role)}</span><span>Lv ${st.lv}</span></div><h4>${m.name}</h4>
+      <div class="traits">${m.traits.map(t=>`<span class="trait t${TRAITS[t].tier}" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}</div>
+      <p>${m.traits.map(t=>TRAITS[t].desc).join(' · ')}</p>
+      <p>${st.hp} HP · ${Math.round(st.dmg)} dmg${T.role==='healer'?' · heals '+Math.round(st.heal):''} · ${m.kills||0} takedowns${c&&c.down>0?' · <b style="color:var(--danger)">knocked down</b>':''}</p>
+      <div class="row">${n>CREW_MIN?`<button class="btn ghost" data-act="release" data-id="${m.id}">${relConfirm===m.id?'Tap again to release':'Release'}</button>`:''}</div></div>`}
+    h+='</div>';
   }else{
     h+=`<h3>Skins</h3><div class="grid">`;
     for(const id in SKINS){const s=SKINS[id],own=save.skins.includes(id),on=save.skin===id;
@@ -718,6 +826,9 @@ $('panelBody').addEventListener('click',e=>{const b=e.target.closest('[data-act]
   if(a==='weap')save.weapon=id;
   if(a==='buyweap'){const p=WEAP[id].price;if(save.coins>=p){save.coins-=p;save.weapons.push(id);save.weapon=id;sfx.up();toast(WEAP[id].name+' unlocked')}}
   if(a==='buddy'){const p=300+300*save.buddy;if(save.coins>=p&&save.buddy<5){save.coins-=p;save.buddy++;sfx.up()}}
+  if(a!=='release')relConfirm=null;
+  if(a==='hire'){const pr=recruitPrice(id);if(save.coins>=pr&&save.crew.length<CREW_MAX){save.coins-=pr;const m=newMember(id);save.crew.push(m);buildCrew();crewToPlayer();sfx.lvl();toast(`${m.name} the ${CREW_TYPES[id].name} joined! Traits: ${m.traits.map(t=>TRAITS[t].name).join(', ')}`)}}
+  if(a==='release'){if(relConfirm===id&&save.crew.length>CREW_MIN){const m=save.crew.find(x=>x.id===id);save.crew=save.crew.filter(x=>x.id!==id);relConfirm=null;buildCrew();toast(m.name+' went home to the wild')}else relConfirm=id}
   if(a==='potion'){if(save.coins>=60&&save.potions<5){save.coins-=60;save.potions++;sfx.coin()}}
   persist();refreshStats();renderPanel()});
 
@@ -747,7 +858,7 @@ function drawBigMap(){mapWps=[{x:0,y:130,name:'Home Village'}];for(const L of LA
 bm.addEventListener('click',e=>{const r=bm.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*1200,y=(e.clientY-r.top)/r.height*1200,sc=1200/(WR*2+120);
   for(const w of mapWps){if(Math.hypot(600+w.x*sc-x,600+w.y*sc-y)<40){
     if(G.fight){toast("You can't fast travel during a boss fight");return}
-    G.p.x=w.x;G.p.y=w.y;G.ens=G.ens.filter(en=>en.op);G.eb=[];for(const o of OUTPOSTS)if(o.spawned){o.spawned=false;G.ens=G.ens.filter(en=>en.op!==o.id+1)}
+    G.p.x=w.x;G.p.y=w.y;crewToPlayer();G.ens=G.ens.filter(en=>en.op);G.eb=[];for(const o of OUTPOSTS)if(o.spawned){o.spawned=false;G.ens=G.ens.filter(en=>en.op!==o.id+1)}
     closeMap();banner(w.name,'Fast travel',1200,'#9be15d');sfx.dash();return}}});
 const mini=$('mini'),mg=mini.getContext('2d');
 function drawMini(){mg.setTransform(1,0,0,1,0,0);mg.clearRect(0,0,300,300);mg.save();mg.beginPath();mg.arc(150,150,150,0,TAU);mg.clip();drawMapLayer(mg,300,G.p.x,G.p.y,300/2400,false);mg.restore()}
@@ -932,6 +1043,18 @@ function makePlayerMesh(id){const sk=SKINS[id]||SKINS.cadet,g=new THREE.Group(),
   if(f==='halo'){const h=part(g,TOR,bas(0xe7d4ff),0,r*2.4,0,r*.6);h.rotation.x=Math.PI/2}
   g.userData={body,skin:id,rainbow:sk.rainbow};return g}
 
+const crewMeshes=new Set();
+function makePersonMesh(type){const T=CREW_TYPES[type],g=new THREE.Group(),r=12,body=lam(T.col);g.userData={body,legs:[],flap:[],hover:0};
+  for(const s of[-1,1])g.userData.legs.push(part(g,CYL,lam(0x2a3446),0,0,s*r*.4,r*.22,r*.75,r*.22));
+  part(g,SPH,body,0,r*1.25,0,r*.8,r*.75,r*.75);part(g,SPH,lam(0xf1c9a0),r*.1,r*2.1,0,r*.52);for(const s of[-1,1])part(g,SPHL,bas(0x111111),r*.58,r*2.2,s*r*.2,r*.08);
+  if(type==='ranger'){part(g,CONE,lam(0x2f6b2a),0,r*2.4,0,r*.65,r*.6,r*.65);part(g,BOX,lam(0x5b3b22),r*.7,r*1.25,r*.7,r*1.3,r*.2,r*.2)}
+  if(type==='brawler'){part(g,BOX,lam(0xc0283d),0,r*2.35,0,r*.95,r*.16,r*.95);for(const s of[-1,1])part(g,SPH,lam(0xc0283d),r*.75,r*1.25,s*r*.75,r*.3)}
+  if(type==='medic'){part(g,HEMI,lam(0xffffff),0,r*2.3,0,r*.56);part(g,BOX,bas(0xff3355),r*.62,r*1.35,0,r*.05,r*.5,r*.16);part(g,BOX,bas(0xff3355),r*.62,r*1.35,0,r*.05,r*.16,r*.5)}
+  if(type==='engineer'){part(g,HEMI,lam(0xffc93c),0,r*2.35,0,r*.62,r*.5,r*.62);part(g,BOX,lam(0x3b475a),r*.75,r*1.25,r*.75,r*1.5,r*.35,r*.35)}
+  return g}
+function makeCrewMesh(c){const T=CREW_TYPES[c.m.type];let g;if(T.person)g=makePersonMesh(c.m.type);else{const d=EN[c.m.type];g=makeEnemyMesh({draw:d.draw,col:d.col,r:d.r*.9,kind:c.m.type})}
+  const top=Math.max(...c.m.traits.map(t=>TRAITS[t].tier));g.userData.ringC=top>=3?0xffc93c:top>=2?0x37a8ff:0x9be15d;
+  const ring=part(g,TOR,bas(g.userData.ringC),0,2,0,c.r*1.3/(c.tr.giant?1.3:1));ring.rotation.x=Math.PI/2;ring.castShadow=false;g.userData.ring=ring;return g}
 /* ----- dynamic pools ----- */
 function pool(geo,mat,n){const m=new THREE.InstancedMesh(geo,mat,n);m.frustumCulled=false;for(let i=0;i<n;i++)m.setColorAt(i,tmpC.set(0xffffff));m.count=0;scene.add(m);return m}
 const PB=pool(SPHL,bas(0xffffff),500),EB=pool(SPHL,bas(0xffffff),900),EBG=pool(SPHL,bas(0xffffff,{transparent:true,opacity:.35,depthWrite:false}),900),PARTS=pool(BOX,bas(0xffffff),800);
@@ -943,7 +1066,7 @@ for(let i=0;i<24;i++){const f=new THREE.Mesh(new THREE.CircleGeometry(1,40).rota
 for(let i=0;i<6;i++){const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2).translate(.5,0,0),bas(0xff3355,{transparent:true,opacity:.3,depthWrite:false}));m.visible=false;scene.add(m);teleLine.push(m)}
 const beamM=[],beamCore=[];for(let i=0;i<8;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(1,1,1).translate(.5,0,0),bas(0xff2255,{transparent:true,opacity:1}));const c=new THREE.Mesh(m.geometry,bas(0xffffff));m.visible=c.visible=false;scene.add(m);scene.add(c);beamM.push(m);beamCore.push(c)}
 const boltM=[];for(let i=0;i<10;i++){const m=new THREE.Mesh(CYL,bas(0xfff6a0,{transparent:true}));m.visible=false;scene.add(m);boltM.push(m)}
-const barBg=[],barFg=[];const BARG=new THREE.PlaneGeometry(1,1);for(let i=0;i<40;i++){const b=new THREE.Mesh(BARG,bas(0x000000,{transparent:true,opacity:.6,depthTest:false}));const f=new THREE.Mesh(new THREE.PlaneGeometry(1,1).translate(.5,0,0),bas(0xff4d6d,{depthTest:false}));b.renderOrder=f.renderOrder=6;b.visible=f.visible=false;scene.add(b);scene.add(f);barBg.push(b);barFg.push(f)}
+const barBg=[],barFg=[];const BARG=new THREE.PlaneGeometry(1,1);for(let i=0;i<80;i++){const b=new THREE.Mesh(BARG,bas(0x000000,{transparent:true,opacity:.6,depthTest:false}));const f=new THREE.Mesh(new THREE.PlaneGeometry(1,1).translate(.5,0,0),bas(0xff4d6d,{depthTest:false}));b.renderOrder=f.renderOrder=6;b.visible=f.visible=false;scene.add(b);scene.add(f);barBg.push(b);barFg.push(f)}
 const arrow=new THREE.Mesh(new THREE.ConeGeometry(9,24,3).rotateZ(-Math.PI/2),bas(0xffc93c));arrow.visible=false;scene.add(arrow);
 const buddyM=new THREE.Group();part(buddyM,SPH,lam(0x2a3446),0,0,0,8);part(buddyM,SPH,bas(0xffe27a),6,0,0,3);const bRing=part(buddyM,TOR,bas(0xffe27a),0,6,0,9);bRing.rotation.x=Math.PI/2;scene.add(buddyM);
 let playerM=makePlayerMesh(save.skin);scene.add(playerM);
@@ -998,6 +1121,20 @@ function render3d(t,dt){
     if(!e.boss&&e.hp<e.maxHp&&bi<barBg.length&&e.spawn<=0){const w=e.r*2.4,bh=y+e.r*2.6+(U.hover?10:0);const b=barBg[bi],f=barFg[bi];b.visible=f.visible=true;
       b.position.set(e.x,bh,e.y);b.quaternion.copy(camera.quaternion);b.scale.set(w+2,5,1);f.quaternion.copy(camera.quaternion);f.position.copy(b.position);f.translateX(-w/2);f.translateZ(.1);f.scale.set(w*Math.max(0,e.hp/e.maxHp),3,1);f.material.color.setHex(e.passive?0x9be15d:0xff4d6d);bi++}
   }
+  // crew
+  const liveC=new Set();
+  for(const c of G.crew){const key=c.m.type+(c.tr.giant?'g':'');if(!c.mesh||c.mkey!==key){if(c.mesh){scene.remove(c.mesh);crewMeshes.delete(c.mesh)}c.mesh=makeCrewMesh(c);c.mkey=key;scene.add(c.mesh);crewMeshes.add(c.mesh)}
+    const m=c.mesh,U=m.userData;liveC.add(m);const vis=Math.abs(c.x-p.x)<1300&&Math.abs(c.y-p.y)<1300;m.visible=vis;if(!vis)continue;
+    const mv=Math.hypot(c.x-(U.lx==null?c.x:U.lx),c.y-(U.ly==null?c.y:U.ly))/Math.max(dt,.001);U.lx=c.x;U.ly=c.y;
+    const y=U.hover&&c.down<=0?U.hover+Math.sin(t*3+c.slot)*5:0;m.position.set(c.x+Math.cos(c.face)*c.lunge*50,y,c.y+Math.sin(c.face)*c.lunge*50);
+    m.rotation.set(0,-c.face,c.down>0?1.4:0);m.scale.setScalar(c.tr.giant?1.3:1);U.body.emissive.setHex(c.inv>.35?0xff3355:0x000000);
+    const sw=Math.min(1,mv/120)*Math.sin(t*16+c.slot)*.6;for(let i=0;i<U.legs.length;i++)U.legs[i].rotation.z=(i%2?sw:-sw)+(c.m.type==='spider'?-Math.cos((i/8)*TAU+.4)*1.2:0);
+    for(const[w,sg]of U.flap){if(sg)w.rotation.x=sg*Math.sin(t*14)*.5;else w.rotation.y=t*30}
+    U.ring.material.color.setHex(c.down>0?0x555555:U.ringC);
+    if((c.hp<c.maxHp||c.down>0)&&bi<barBg.length){const w=Math.max(22,c.r*2.4),bh=y+c.r*2.8+18;const b=barBg[bi],f=barFg[bi];b.visible=f.visible=true;
+      b.position.set(c.x,bh,c.y);b.quaternion.copy(camera.quaternion);b.scale.set(w+2,5,1);f.quaternion.copy(camera.quaternion);f.position.copy(b.position);f.translateX(-w/2);f.translateZ(.1);
+      f.scale.set(Math.max(.01,w*(c.down>0?1-c.down/(c.tr.quick?5:15):c.hp/c.maxHp)),3,1);f.material.color.setHex(c.down>0?0x8fa3c2:0x5fe36b);bi++}}
+  for(const m of crewMeshes)if(!liveC.has(m)){scene.remove(m);crewMeshes.delete(m)}
   for(let i=bi;i<barBg.length;i++)barBg[i].visible=barFg[i].visible=false;
   for(const m of entMeshes)if(!live.has(m)){scene.remove(m);entMeshes.delete(m);m.traverse(o=>{if(o.material&&o.material.dispose)o.material.dispose()})}
   // bullets
@@ -1067,7 +1204,7 @@ const hc={};function setT(id,v){if(hc[id]!==v){hc[id]=v;$(id).textContent=v}}
 let miniT=0;
 function hud(dt){const p=G.p;$('hpFill').style.width=(100*p.hp/p.maxHp)+'%';setT('hpTxt',Math.ceil(p.hp)+'/'+p.maxHp);
   const need=xpNeed(save.level);$('xpFill').style.width=(100*save.xp/need)+'%';setT('lvTxt','Level '+save.level);setT('xpTxt',save.xp+'/'+need+' XP');
-  setT('coinTxt',String(save.coins));setT('ptsTxt',String(save.pts));setT('zoneTxt',G.zone);setT('dayTxt',isNight()?'Night':'Day');setT('potTxt',String(save.potions));
+  setT('coinTxt',String(save.coins));setT('ptsTxt',String(save.pts));{const dn=G.crew.filter(c=>c.down>0).length;setT('crewTxt',save.crew.length+'/'+CREW_MAX+(dn?' · '+dn+' down':''))}setT('zoneTxt',G.zone);setT('dayTxt',isNight()?'Night':'Day');setT('potTxt',String(save.potions));
   $('tHeal').textContent='HEAL '+save.potions;
   const ob=`Bosses <b>${bossCount()}/6</b> · Outposts <b>${Object.keys(save.outposts).length}/4</b>`;if(hc.obj!==ob){hc.obj=ob;$('obj').innerHTML=ob}
   if(G.fight)$('bossFill').style.width=Math.max(0,100*G.fight.boss.hp/G.fight.boss.maxHp)+'%';
