@@ -104,6 +104,10 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);b
 .names label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);font-weight:700}
 .picking .card .face{outline:2px solid transparent}
 .box p{margin:0;color:var(--muted)}
+.online{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:8px;text-align:left}
+.online .row input{flex:1;min-width:0;font:inherit;font-family:var(--display);letter-spacing:.2em;text-transform:uppercase;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.code{font-family:var(--display);font-weight:700;font-size:2rem;letter-spacing:.18em;color:var(--ink)}
+.err{color:var(--no);font-weight:700;font-size:.9rem}
 </style>
 
 <div class="wrap">
@@ -122,6 +126,12 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);b
           <button class="btn" id="randBtn">Random</button>
         </div>
       </div>
+      <div id="waitBox" style="display:flex;flex-direction:column;gap:6px" hidden>
+        <div class="label" id="waitLabel">Waiting</div>
+        <div class="code" id="waitCode"></div>
+        <div id="waitText"></div>
+      </div>
+      <div class="err" id="netMsg" hidden></div>
       <div id="mineBox">
         <div class="label" id="mineLabel">Your secret person</div>
         <div class="mine" id="mine"></div>
@@ -168,8 +178,17 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);b
       <button class="mode" id="pvpMode"><b>2 players</b><small>Pass one device back and forth</small></button>
     </div>
     <div class="names">
-      <label for="p1name">Player 1 name<input id="p1name" placeholder="Player 1" maxlength="14"></label>
+      <label for="p1name">Your name / Player 1<input id="p1name" placeholder="Player 1" maxlength="14"></label>
       <label for="p2name">Player 2 name<input id="p2name" placeholder="Player 2" maxlength="14"></label>
+    </div>
+    <div class="online">
+      <div class="label">Play online on two phones</div>
+      <button class="btn primary" id="createBtn" disabled>Create online game</button>
+      <div class="row">
+        <input id="joinCode" maxlength="4" placeholder="CODE" aria-label="Game code" autocomplete="off">
+        <button class="btn" id="joinBtn" disabled>Join</button>
+      </div>
+      <div class="err" id="startMsg">Connecting…</div>
     </div>
   </div>
 </div>
@@ -266,10 +285,13 @@ function faceSVG(c){
 
 let S=null;
 const $=id=>document.getElementById(id);
-const esc=s=>s.replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const esc=s=>String(s).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
 const player=n=>({name:n,secret:null,down:new Set(),asked:new Map()});
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
+/* ---------- local games (vs CPU, 2 players on one device) ---------- */
 function setup(mode){
+  leaveOnline();
   const cast=makeCast();
   const n1=esc($("p1name").value.trim()||"Player 1"), n2=esc($("p2name").value.trim()||"Player 2");
   S={mode,cast,cur:0,phase:"pick",acted:false,guess:false,pending:null,
@@ -295,17 +317,20 @@ function buildSelect(){
     const o=document.createElement("option"); o.value=i; o.textContent=q.t; groups[q.g].appendChild(o); });
 }
 
-const viewer=()=>S.mode==="cpu"?0:S.cur;
-const myTurn=()=>S.phase==="play"&&(S.mode==="pvp"||S.cur===0);
+const viewer=()=>S.mode==="cpu"?0:S.mode==="online"?S.me:S.cur;
+const myTurn=()=>S.phase==="play"&&!S.busy&&(S.mode==="pvp"||S.cur===viewer());
 
 function cardClick(id){
-  if(!S||S.phase==="over"||S.phase==="handoff")return;
+  if(!S||S.phase==="over"||S.phase==="handoff"||S.phase==="lobby"||S.phase==="waitpick")return;
   if(S.phase==="pick"||(S.guess&&myTurn())){S.pending=id;render();return}
-  const d=S.players[viewer()].down; d.has(id)?d.delete(id):d.add(id); render();
+  const d=S.players[viewer()].down; d.has(id)?d.delete(id):d.add(id);
+  if(S.mode==="online") queueDownWrite();
+  render();
 }
 
 function lockPick(){
   if(S.pending==null)return;
+  if(S.mode==="online"){ const id=S.pending; S.pending=null; netWrite(()=>pdoc(S.me).update({secret:id})); return; }
   S.players[S.cur].secret=S.pending; S.pending=null;
   if(S.mode==="cpu"){S.phase="play";render();return}
   if(S.cur===0) handoff(1,"pick",`Pass to ${S.players[1].name}`,`${S.players[1].name}, it's your turn to choose a secret person.`);
@@ -315,26 +340,28 @@ function lockPick(){
 function handoff(next,nextPhase,title,text){
   S.phase="handoff"; S.hand={next,nextPhase}; S.guess=false; S.pending=null;
   $("hTitle").innerHTML=title; $("hText").innerHTML=text+" No peeking at the other board.";
-  $("readyBtn").textContent=`I'm ${S.players[next].name}, show my board`;
+  $("readyBtn").innerHTML=`I'm ${S.players[next].name}, show my board`;
   render(); $("handoff").hidden=false; $("readyBtn").focus();
 }
 $("readyBtn").onclick=()=>{ S.cur=S.hand.next; S.phase=S.hand.nextPhase; S.acted=false; $("handoff").hidden=true; render(); };
 
+function logHTML(who,text,ans,extra){
+  return `<span class="who">${who}:</span> ${text} <span class="${ans?"yes":"no"}">${ans?"Yes":"No"}</span>${extra?` <span style="color:var(--muted)">${extra}</span>`:""}`;
+}
 function logLine(who,text,ans,extra){
-  const li=document.createElement("li");
-  li.innerHTML=`<span class="who">${who}:</span> ${text} <span class="${ans?"yes":"no"}">${ans?"Yes":"No"}</span>${extra?` <span style="color:var(--muted)">${extra}</span>`:""}`;
-  $("log").prepend(li);
+  const li=document.createElement("li"); li.innerHTML=logHTML(who,text,ans,extra); $("log").prepend(li);
 }
 
 function ask(){
   if(!myTurn()||S.acted)return;
-  const P=S.players[S.cur], O=S.players[1-S.cur];
+  const P=S.players[viewer()], O=S.players[1-viewer()];
   const i=+$("q").value; if(P.asked.has(i))return;
-  const q=Q[i], ans=q.f(S.cast[O.secret]); P.asked.set(i,ans);
+  const q=Q[i], ans=q.f(S.cast[O.secret]);
   let flipped=0;
   if($("auto").checked) S.cast.forEach(c=>{ if(!P.down.has(c.id)&&q.f(c)!==ans){P.down.add(c.id);flipped++} });
+  if(S.mode==="online"){ askOnline(i,ans,flipped); return; }
+  P.asked.set(i,ans);
   logLine(P.name,q.t,ans,$("auto").checked?`(${flipped} flipped)`:"");
-  const next=[...$("q").options].find(o=>!P.asked.has(+o.value)); if(next)$("q").value=next.value;
   if(S.mode==="cpu"){S.cur=1;render();setTimeout(cpuTurn,1100)}
   else{S.acted=true;render()}
 }
@@ -345,7 +372,7 @@ function endTurn(){
 }
 
 function cpuTurn(){
-  if(S.phase!=="play"||S.cur!==1)return;
+  if(S.mode!=="cpu"||S.phase!=="play"||S.cur!==1)return;
   const me=S.players[0].secret;
   if(S.cpuC.length===1){ const g=S.cast[S.cpuC[0]]; logLine("CPU",`Is it ${g.name}?`,true); return end(1,`The CPU guessed <b>${g.name}</b>.`); }
   const useful=Q.map((q,i)=>({i,y:S.cpuC.filter(id=>q.f(S.cast[id])).length}))
@@ -361,42 +388,198 @@ function cpuTurn(){
 
 function end(winner,msg){
   S.phase="over"; S.guess=false; S.pending=null; render();
-  const W=S.players[winner];
-  $("mTitle").textContent=S.mode==="cpu"?(winner===0?"You win!":"You lose"):`${W.name} wins!`.replace(/&amp;/g,"&");
+  const W=S.players[winner], solo=S.mode==="cpu"||S.mode==="online";
+  $("mTitle").innerHTML=solo?(winner===viewer()?"You win!":"You lose"):`${W.name} wins!`;
   $("mText").innerHTML=msg;
-  $("mReveal").innerHTML=S.players.map(P=>{const c=S.cast[P.secret];return `<div><div class="mini">${faceSVG(c)}</div><p>${P.name==="You"?"You":P.name} had <b>${c.name}</b></p></div>`}).join("");
+  $("mReveal").innerHTML=S.players.map((P,i)=>{const c=S.cast[P.secret];if(!c)return"";
+    const who=solo&&i===viewer()?"You":P.name;
+    return `<div><div class="mini">${faceSVG(c)}</div><p>${who} had <b>${c.name}</b></p></div>`}).join("");
+  $("againBtn").textContent=S.mode==="online"?"Rematch":"Play again";
   setTimeout(()=>{$("modal").hidden=false;$("againBtn").focus()},500);
 }
 
 function confirmGuess(){
-  const P=S.players[S.cur], O=S.players[1-S.cur], g=S.cast[S.pending]; S.pending=null;
+  const me=viewer(), P=S.players[me], O=S.players[1-me], g=S.cast[S.pending]; S.pending=null;
   const right=g.id===O.secret;
+  if(S.mode==="online"){ guessOnline(g,right); return; }
   logLine(P.name,`Is it ${g.name}?`,right);
-  if(right) end(S.cur,`${S.mode==="cpu"?"You":P.name} found <b>${g.name}</b>.`);
-  else end(1-S.cur,`It wasn't ${g.name}. A wrong guess ends the game.`);
+  if(right) end(me,`${S.mode==="cpu"?"You":P.name} found <b>${g.name}</b>.`);
+  else end(1-me,`It wasn't ${g.name}. A wrong guess ends the game.`);
 }
 
+/* ---------- online play (shared database) ---------- */
+const NET={db:null,uid:null,code:null,unsubs:[],main:null,p:[null,null],dirty:false,timer:null,shownOver:null,gid:null};
+const gdoc=()=>NET.db.doc(`games/${NET.code}`);
+const pdoc=i=>NET.db.doc(`games/${NET.code}/players/p${i}`);
+const LETTERS="ABCDEFGHJKLMNPQRSTUVWXYZ";
+const newCode=()=>Array.from({length:4},()=>pick(LETTERS.split(""))).join("");
+const gid=()=>Math.random().toString(36).slice(2,10);
+const myName=()=>($("p1name").value.trim()||"Player").slice(0,14);
+const blankPlayer=(uid,name)=>({uid,name,secret:null,down:[],asked:{}});
+
+function netMsg(t){ $("netMsg").textContent=t||""; $("netMsg").hidden=!t; }
+async function netWrite(fn){
+  S.busy=true; render();
+  try{ await fn(); netMsg(""); }
+  catch(e){ netMsg(e&&e.code==="invalid_argument"?"You can't make moves in this game. Ask the owner to share it with you as an Editor.":"Couldn't reach the game. Try that again."); }
+  S.busy=false; render();
+}
+
+async function initNet(){
+  const c=window.claude;
+  if(!c||!c.use){ $("startMsg").textContent="Online play works when this page is opened on claude.ai."; return; }
+  try{
+    const [db,user]=await Promise.all([c.use("db"),c.use("user")]);
+    const uid=user?await user.id():null;
+    if(!db||!uid){ $("startMsg").textContent="Sign in to claude.ai to play online."; return; }
+    NET.db=db; NET.uid=uid;
+    $("createBtn").disabled=false; $("joinBtn").disabled=false;
+    const last=store.get("fh-code"); $("startMsg").textContent=last?`Last game: ${last}`:"";
+    if(last) $("joinCode").value=last;
+  }catch(e){ $("startMsg").textContent="Online play isn't available right now."; }
+}
+
+async function createOnline(){
+  const code=newCode(); NET.code=code;
+  $("startMsg").textContent="Creating…";
+  try{
+    await gdoc().set({gid:gid(),cast:makeCast(),cur:0,log:[],winner:null,msg:"",round:1});
+    await pdoc(0).set(blankPlayer(NET.uid,myName()));
+    startOnline(code,0);
+  }catch(e){ $("startMsg").textContent="Couldn't create a game. Try again."; }
+}
+
+async function joinOnline(){
+  const code=$("joinCode").value.trim().toUpperCase();
+  if(!/^[A-Z]{4}$/.test(code)){ $("startMsg").textContent="Type the 4-letter code."; return; }
+  NET.code=code; $("startMsg").textContent="Joining…";
+  try{
+    const m=await gdoc().get();
+    if(!m.exists){ $("startMsg").textContent=`No game with code ${code}.`; return; }
+    const [a,b]=await Promise.all([pdoc(0).get(),pdoc(1).get()]);
+    let me;
+    if(a.exists&&a.data().uid===NET.uid) me=0;
+    else if(b.exists&&b.data().uid===NET.uid) me=1;
+    else if(b.exists){ $("startMsg").textContent="That game already has two players."; return; }
+    else { await pdoc(1).set(blankPlayer(NET.uid,myName())); me=1; }
+    startOnline(code,me);
+  }catch(e){ $("startMsg").textContent=e&&e.code==="invalid_argument"?"You can't join yet. Ask the owner to share this page with you as an Editor.":"Couldn't join. Try again."; }
+}
+
+function startOnline(code,me){
+  leaveOnline(); NET.code=code; store.set("fh-code",code); store.set("fh-name",myName());
+  S={mode:"online",me,cast:null,cur:0,phase:"lobby",guess:false,pending:null,busy:false,acted:false,players:[player("…"),player("…")]};
+  $("start").hidden=true; $("modal").hidden=true; $("handoff").hidden=true; $("log").innerHTML="";
+  NET.main=null; NET.p=[null,null]; NET.gid=null; NET.shownOver=null; NET.dirty=false;
+  const loadTimer=setTimeout(()=>{ if(!NET.main) netMsg("Can't reach the game yet. Check your connection."); },10000);
+  const fail=()=>netMsg("Lost connection to the game. Reopen the page to reconnect.");
+  NET.unsubs=[
+    gdoc().onSnapshot(s=>{ if(!s.metadata.fromCache){clearTimeout(loadTimer);netMsg("")} NET.main=s.exists?s.data():null; sync(); },fail),
+    pdoc(0).onSnapshot(s=>{ NET.p[0]=s.exists?s.data():null; sync(); },fail),
+    pdoc(1).onSnapshot(s=>{ NET.p[1]=s.exists?s.data():null; sync(); },fail),
+  ];
+  buildSelect(); render();
+}
+
+function leaveOnline(){ NET.unsubs.forEach(u=>u()); NET.unsubs=[]; clearTimeout(NET.timer); NET.dirty=false; }
+
+function sync(){
+  const M=NET.main; if(!M||!S||S.mode!=="online")return;
+  if(M.gid!==NET.gid){ NET.gid=M.gid; S.cast=cleanCast(M.cast); buildBoard(); S.guess=false; S.pending=null; $("modal").hidden=true; }
+  const localDown=S.players[S.me]&&S.players[S.me].down;
+  S.players=[0,1].map(i=>{ const d=NET.p[i]; if(!d) return null;
+    return {name:esc(String(d.name||`Player ${i+1}`).slice(0,14)),secret:Number.isInteger(d.secret)&&d.secret>=0&&d.secret<24?d.secret:null,down:new Set(d.down||[]),
+            asked:new Map(Object.entries(d.asked||{}).map(([k,v])=>[+k,v]))}; });
+  if(S.players[S.me]&&NET.dirty&&localDown) S.players[S.me].down=localDown;
+  S.cur=M.cur===1?1:0;
+  const me=S.players[S.me], op=S.players[1-S.me];
+  S.phase=M.winner!=null?"over":!op||!me?"lobby":me.secret==null?"pick":op.secret==null?"waitpick":"play";
+  $("log").innerHTML=(M.log||[]).slice().reverse().map(l=>{
+    const who=l.w===S.me?"You":(op?op.name:"Friend");
+    return `<li>${logHTML(who,esc(l.t),!!l.a,Number.isInteger(l.n)?`(${l.n} flipped)`:"")}</li>`;}).join("");
+  if(S.phase==="over"&&NET.shownOver!==M.gid){ NET.shownOver=M.gid;
+    const m=M.msg||{}, g=S.cast[m.g], by=m.by===S.me?"You":(op?op.name:"Your friend");
+    const text=!g?"":m.right?`${by} found <b>${g.name}</b>.`:`${by} guessed ${g.name}, but that was wrong.`;
+    end(M.winner===S.me?S.me:1-S.me,text); return; }
+  render();
+}
+
+// Shared data is drawn into the page, so rebuild every character from known values only.
+function cleanCast(arr){
+  const one=(v,list,d)=>list.includes(v)?v:d;
+  return Array.from({length:24},(_,i)=>{ const c=(Array.isArray(arr)&&arr[i])||{};
+    const style=one(c.style,["short","long","curly","bun","spiky","bald"],"short");
+    return {id:i,name:one(c.name,NAMES,NAMES[i]),skin:one(c.skin,SKIN,SKIN[0]),style,
+      hair:style==="bald"?null:one(c.hair,Object.keys(HAIR),"brown"),eyes:one(c.eyes,Object.keys(EYE),"brown"),
+      glasses:!!c.glasses,hat:!!c.hat,hatColor:one(c.hatColor,HATS,HATS[0]),beard:!!c.beard,mustache:!!c.mustache,
+      earrings:!!c.earrings,freckles:!!c.freckles,smile:!!c.smile,shirt:one(c.shirt,Object.keys(SHIRT),"blue")}; });
+}
+function queueDownWrite(){
+  NET.dirty=true; clearTimeout(NET.timer);
+  NET.timer=setTimeout(async()=>{ const down=[...S.players[S.me].down];
+    try{ await pdoc(S.me).update({down}); }catch(e){}
+    NET.dirty=false; },500);
+}
+
+function askOnline(i,ans,flipped){
+  const me=S.me, down=[...S.players[me].down], q=Q[i];
+  clearTimeout(NET.timer);
+  netWrite(async()=>{
+    await pdoc(me).update({asked:{[i]:ans},down}); NET.dirty=false;
+    await gdoc().update({cur:1-me,log:[...(NET.main.log||[]),{w:me,t:q.t,a:ans,n:$("auto").checked?flipped:null}]});
+  });
+}
+
+function guessOnline(g,right){
+  const me=S.me, name=S.players[me].name;
+  netWrite(()=>gdoc().update({
+    winner:right?me:1-me,
+    msg:{by:me,right,g:g.id},
+    log:[...(NET.main.log||[]),{w:me,t:`Is it ${g.name}?`,a:right,n:null}]}));
+}
+
+function rematch(){
+  const M=NET.main, round=(M.round||1)+1;
+  netWrite(async()=>{
+    for(const i of [0,1]){ const d=NET.p[i]; if(d) await pdoc(i).set(blankPlayer(d.uid,d.name)); }
+    await gdoc().set({gid:gid(),cast:makeCast(),cur:(round-1)%2,log:[],winner:null,msg:"",round});
+  });
+}
+
+/* ---------- drawing the panel ---------- */
 function render(){
-  if(!S)return;
-  const V=S.players[viewer()], O=S.players[1-viewer()], picking=S.phase==="pick";
-  S.cast.forEach(c=>{const el=$("card-"+c.id); el.classList.toggle("down",!picking&&V.down.has(c.id)); el.classList.toggle("pending",S.pending===c.id);});
+  if(!S||!S.cast&&S.mode!=="online")return;
+  const on=S.mode==="online", vi=viewer();
+  const ghost={name:"your friend",secret:null,down:new Set(),asked:new Map()};
+  const V=S.players[vi]||ghost, O=S.players[1-vi]||ghost, picking=S.phase==="pick";
+  if(S.cast) S.cast.forEach(c=>{const el=$("card-"+c.id); if(!el)return;
+    el.classList.toggle("down",!picking&&V.down.has(c.id)); el.classList.toggle("pending",S.pending===c.id);});
   $("board").classList.toggle("guessing",S.guess);
   $("board").classList.toggle("picking",picking);
 
+  const waiting=S.phase==="lobby"||S.phase==="waitpick";
+  $("waitBox").hidden=!(on&&(waiting||S.phase==="play"||S.phase==="over"));
+  if(on){
+    $("waitLabel").textContent="Game code";
+    $("waitCode").textContent=NET.code;
+    $("waitText").innerHTML=S.phase==="lobby"?"Send this code to your friend. They open this same page, tap <b>New game</b>, and join with it."
+      :S.phase==="waitpick"?`Waiting for ${O.name} to pick their person…`:"";
+  }
+
   $("pickBox").hidden=!picking;
-  const pp=S.pending!=null?S.cast[S.pending]:null;
-  $("pickLabel").textContent=S.mode==="pvp"?`${S.players[S.cur].name}: choose your secret person`.replace(/&amp;/g,"&"):"Choose your secret person";
+  const pp=S.pending!=null&&S.cast?S.cast[S.pending]:null;
+  $("pickLabel").innerHTML=S.mode==="pvp"?`${S.players[S.cur].name}: choose your secret person`:"Choose your secret person";
   $("pickText").innerHTML=pp?`You picked <b>${pp.name}</b>. Lock it in, or tap a different face.`:"Tap a face on the board. The other side will try to guess it.";
-  $("pickBtn").disabled=!pp;
+  $("pickBtn").disabled=!pp||S.busy;
 
   $("mineBox").hidden=picking||V.secret==null;
-  if(V.secret!=null){const m=S.cast[V.secret];
-    $("mineLabel").textContent=S.mode==="pvp"?`${V.name}'s secret person`.replace(/&amp;/g,"&"):"Your secret person";
-    $("mine").innerHTML=`<div class="mini">${faceSVG(m)}</div><div><b>${m.name}</b><small>${O.name==="CPU"?"The CPU":O.name} is trying to find this person. Keep it secret.</small></div>`;}
+  if(V.secret!=null&&S.cast){const m=S.cast[V.secret];
+    $("mineLabel").innerHTML=S.mode==="pvp"?`${V.name}'s secret person`:"Your secret person";
+    $("mine").innerHTML=`<div class="mini">${faceSVG(m)}</div><div><b>${m.name}</b><small>${S.mode==="cpu"?"The CPU":O.name} is trying to find this person. Keep it secret.</small></div>`;}
 
-  $("counts").hidden=picking;
+  $("counts").hidden=picking||S.phase==="lobby";
   const vLeft=24-V.down.size, oLeft=S.mode==="cpu"?S.cpuC.length:24-O.down.size;
-  $("aLabel").innerHTML=S.mode==="cpu"?"You have left":`${V.name} has left`;
+  $("aLabel").innerHTML=S.mode==="pvp"?`${V.name} has left`:"You have left";
   $("bLabel").innerHTML=S.mode==="cpu"?"CPU has left":`${O.name} has left`;
   $("myN").textContent=vLeft; $("cpuN").textContent=oLeft;
   $("myDots").innerHTML=Array.from({length:24},(_,i)=>`<i class="${i<vLeft?"on":""}"></i>`).join("");
@@ -407,7 +590,7 @@ function render(){
   if(V.asked.has(+$("q").value)){const f=[...$("q").options].find(o=>!o.disabled); if(f)$("q").value=f.value}
 
   const mine=myTurn();
-  $("askBox").hidden=picking;
+  $("askBox").hidden=picking||waiting;
   $("askBtn").disabled=!mine||S.guess||S.acted||V.asked.has(+$("q").value);
   $("q").disabled=!mine||S.guess||S.acted;
   $("guessBtn").disabled=!mine||S.guess;
@@ -416,13 +599,16 @@ function render(){
   $("guessBtn").textContent=S.guess?"Guessing…":"Make a guess";
   const p=S.guess&&S.pending!=null?S.cast[S.pending]:null;
   $("confirmText").innerHTML=p?`Guess <b>${p.name}</b>? A wrong guess loses the game.`:"Tap a face on the board to guess it.";
-  $("confirmBtn").disabled=!p;
+  $("confirmBtn").disabled=!p||S.busy;
   $("diffWrap").hidden=S.mode!=="cpu";
 
   const st=$("status"); st.classList.toggle("you",mine||picking);
-  const who=S.players[S.cur].name;
-  st.innerHTML=S.phase==="over"?"Game over":S.phase==="handoff"?"Pass the device":picking?(S.mode==="pvp"?`${who}: pick a person`:"Pick your person")
+  const who=S.players[S.cur]?S.players[S.cur].name:"";
+  st.innerHTML=S.phase==="over"?"Game over":S.phase==="handoff"?"Pass the device"
+    :S.phase==="lobby"?"Waiting for a friend":S.phase==="waitpick"?`Waiting for ${O.name}`
+    :picking?(S.mode==="pvp"?`${who}: pick a person`:"Pick your person")
     :S.mode==="cpu"?(S.cur===1?"CPU is thinking…":S.guess?"Pick your guess":vLeft===1?"One left. Make your guess!":"Your turn")
+    :on?(S.cur===S.me?(S.guess?"Pick your guess":vLeft===1?"One left. Make your guess!":"Your turn"):`${O.name}'s turn`)
     :S.guess?`${who}: pick your guess`:S.acted?`${who}: end your turn`:`${who}'s turn`;
 }
 
@@ -436,9 +622,15 @@ $("cancelBtn").onclick=()=>{S.guess=false;S.pending=null;render()};
 $("confirmBtn").onclick=confirmGuess;
 $("cpuMode").onclick=()=>setup("cpu");
 $("pvpMode").onclick=()=>setup("pvp");
+$("createBtn").onclick=createOnline;
+$("joinBtn").onclick=joinOnline;
+$("joinCode").onkeydown=e=>{ if(e.key==="Enter") joinOnline(); };
 const showStart=()=>{$("modal").hidden=true;$("handoff").hidden=true;$("start").hidden=false;$("cpuMode").focus()};
-$("newBtn").onclick=showStart; $("againBtn").onclick=showStart;
+$("newBtn").onclick=showStart;
+$("againBtn").onclick=()=>{ if(S&&S.mode==="online"){ $("modal").hidden=true; rematch(); } else showStart(); };
+{ const n=store.get("fh-name"); if(n) $("p1name").value=n; }
 // Show a sample board behind the start screen.
 S={mode:"cpu",cast:makeCast(),cur:0,phase:"pick",acted:false,guess:false,pending:null,players:[player("You"),player("CPU")],cpuC:[],cpuAsked:new Set()};
 buildBoard(); buildSelect(); render(); $("status").textContent="Pick a mode";
+initNet();
 </script>
