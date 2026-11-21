@@ -93,23 +93,42 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);b
   .tray{padding:10px}
 }
 @media (prefers-reduced-motion:reduce){.inner{transition:none}}
+.modal.solid{background:var(--bg)}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode{all:unset;cursor:pointer;border:2px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;display:flex;flex-direction:column;gap:4px}
+.mode b{font-family:var(--display);font-size:1.2rem;font-weight:600}
+.mode small{color:var(--muted)}
+.mode:hover,.mode:focus-visible{border-color:var(--accent);outline:none}
+.names{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left}
+.names input{width:100%;font:inherit;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.names label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);font-weight:700}
+.picking .card .face{outline:2px solid transparent}
+.box p{margin:0;color:var(--muted)}
 </style>
 
 <div class="wrap">
   <header>
     <h1>Face <span>Hunt</span></h1>
-    <div class="status" id="status">Your turn</div>
+    <div class="status" id="status">Pick a mode</div>
   </header>
   <div class="game">
     <div class="tray"><div class="board" id="board"></div></div>
     <aside class="panel">
-      <div>
-        <div class="label">Your secret person</div>
+      <div id="pickBox" style="display:flex;flex-direction:column;gap:8px">
+        <div class="label" id="pickLabel">Choose your secret person</div>
+        <div id="pickText">Tap a face on the board. The other side will try to guess it.</div>
+        <div class="row">
+          <button class="btn primary grow" id="pickBtn" disabled>Lock it in</button>
+          <button class="btn" id="randBtn">Random</button>
+        </div>
+      </div>
+      <div id="mineBox">
+        <div class="label" id="mineLabel">Your secret person</div>
         <div class="mine" id="mine"></div>
       </div>
-      <div class="counts">
-        <div class="count"><div class="label">You have left</div><div class="n" id="myN">24</div><div class="dots" id="myDots"></div></div>
-        <div class="count"><div class="label">CPU has left</div><div class="n" id="cpuN">24</div><div class="dots" id="cpuDots"></div></div>
+      <div class="counts" id="counts">
+        <div class="count"><div class="label" id="aLabel">You have left</div><div class="n" id="myN">24</div><div class="dots" id="myDots"></div></div>
+        <div class="count"><div class="label" id="bLabel">CPU has left</div><div class="n" id="cpuN">24</div><div class="dots" id="cpuDots"></div></div>
       </div>
       <div id="askBox" style="display:flex;flex-direction:column;gap:8px">
         <div class="label">Ask a yes / no question</div>
@@ -118,6 +137,7 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);b
           <button class="btn primary grow" id="askBtn">Ask</button>
           <button class="btn" id="guessBtn">Make a guess</button>
         </div>
+        <button class="btn primary" id="endBtn">End turn</button>
       </div>
       <div class="confirm" id="confirm" hidden>
         <div id="confirmText">Tap a face on the board to guess it.</div>
@@ -128,7 +148,7 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);b
       </div>
       <div class="opts">
         <label><input type="checkbox" id="auto" checked> Auto-flip</label>
-        <label>CPU <select id="diff"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></label>
+        <label id="diffWrap">CPU <select id="diff"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></label>
         <button class="btn" id="newBtn">New game</button>
       </div>
       <div>
@@ -136,6 +156,29 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);b
         <ul class="log" id="log"></ul>
       </div>
     </aside>
+  </div>
+</div>
+
+<div class="modal" id="start">
+  <div class="box">
+    <h2>Face Hunt</h2>
+    <p>Ask yes/no questions and flip faces down. The first to find the other side's secret person wins.</p>
+    <div class="modes">
+      <button class="mode" id="cpuMode"><b>vs CPU</b><small>Play on your own</small></button>
+      <button class="mode" id="pvpMode"><b>2 players</b><small>Pass one device back and forth</small></button>
+    </div>
+    <div class="names">
+      <label for="p1name">Player 1 name<input id="p1name" placeholder="Player 1" maxlength="14"></label>
+      <label for="p2name">Player 2 name<input id="p2name" placeholder="Player 2" maxlength="14"></label>
+    </div>
+  </div>
+</div>
+
+<div class="modal solid" id="handoff" hidden>
+  <div class="box">
+    <h2 id="hTitle">Pass the device</h2>
+    <p id="hText">No peeking at the other board.</p>
+    <button class="btn primary" id="readyBtn">I'm ready</button>
   </div>
 </div>
 
@@ -220,17 +263,21 @@ function faceSVG(c){
   return `<svg viewBox="0 0 100 110" aria-hidden="true">${p.join("")}</svg>`;
 }
 
-let S={};
-const $=id=>document.getElementById(id);
 
-function newGame(){
-  const cast=makeCast(); const ids=shuffle(cast.map(c=>c.id));
-  S={cast,me:ids[0],cpu:ids[1],down:new Set(),cpuC:cast.map(c=>c.id),asked:new Map(),cpuAsked:new Set(),turn:"player",guess:false,pending:null};
-  $("log").innerHTML=""; $("modal").hidden=true;
-  buildBoard(); buildSelect();
-  const m=cast[S.me];
-  $("mine").innerHTML=`<div class="mini">${faceSVG(m)}</div><div><b>${m.name}</b><small>The CPU is trying to find this person. Keep it secret.</small></div>`;
-  render();
+let S=null;
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const player=n=>({name:n,secret:null,down:new Set(),asked:new Map()});
+
+function setup(mode){
+  const cast=makeCast();
+  const n1=esc($("p1name").value.trim()||"Player 1"), n2=esc($("p2name").value.trim()||"Player 2");
+  S={mode,cast,cur:0,phase:"pick",acted:false,guess:false,pending:null,
+     players:mode==="cpu"?[player("You"),player("CPU")]:[player(n1),player(n2)],
+     cpuC:cast.map(c=>c.id),cpuAsked:new Set(),hand:null};
+  if(mode==="cpu") S.players[1].secret=pick(cast).id;
+  $("log").innerHTML=""; $("start").hidden=true; $("modal").hidden=true; $("handoff").hidden=true;
+  buildBoard(); buildSelect(); render();
 }
 
 function buildBoard(){
@@ -248,11 +295,30 @@ function buildSelect(){
     const o=document.createElement("option"); o.value=i; o.textContent=q.t; groups[q.g].appendChild(o); });
 }
 
+const viewer=()=>S.mode==="cpu"?0:S.cur;
+const myTurn=()=>S.phase==="play"&&(S.mode==="pvp"||S.cur===0);
+
 function cardClick(id){
-  if(S.turn==="over")return;
-  if(S.guess){ if(S.turn!=="player")return; S.pending=id; render(); return; }
-  S.down.has(id)?S.down.delete(id):S.down.add(id); render();
+  if(!S||S.phase==="over"||S.phase==="handoff")return;
+  if(S.phase==="pick"||(S.guess&&myTurn())){S.pending=id;render();return}
+  const d=S.players[viewer()].down; d.has(id)?d.delete(id):d.add(id); render();
 }
+
+function lockPick(){
+  if(S.pending==null)return;
+  S.players[S.cur].secret=S.pending; S.pending=null;
+  if(S.mode==="cpu"){S.phase="play";render();return}
+  if(S.cur===0) handoff(1,"pick",`Pass to ${S.players[1].name}`,`${S.players[1].name}, it's your turn to choose a secret person.`);
+  else handoff(0,"play",`Pass to ${S.players[0].name}`,`${S.players[0].name} asks the first question.`);
+}
+
+function handoff(next,nextPhase,title,text){
+  S.phase="handoff"; S.hand={next,nextPhase}; S.guess=false; S.pending=null;
+  $("hTitle").innerHTML=title; $("hText").innerHTML=text+" No peeking at the other board.";
+  $("readyBtn").textContent=`I'm ${S.players[next].name}, show my board`;
+  render(); $("handoff").hidden=false; $("readyBtn").focus();
+}
+$("readyBtn").onclick=()=>{ S.cur=S.hand.next; S.phase=S.hand.nextPhase; S.acted=false; $("handoff").hidden=true; render(); };
 
 function logLine(who,text,ans,extra){
   const li=document.createElement("li");
@@ -261,68 +327,118 @@ function logLine(who,text,ans,extra){
 }
 
 function ask(){
-  if(S.turn!=="player")return;
-  const i=+$("q").value; if(S.asked.has(i))return;
-  const q=Q[i], ans=q.f(S.cast[S.cpu]); S.asked.set(i,ans);
+  if(!myTurn()||S.acted)return;
+  const P=S.players[S.cur], O=S.players[1-S.cur];
+  const i=+$("q").value; if(P.asked.has(i))return;
+  const q=Q[i], ans=q.f(S.cast[O.secret]); P.asked.set(i,ans);
   let flipped=0;
-  if($("auto").checked) S.cast.forEach(c=>{ if(!S.down.has(c.id)&&q.f(c)!==ans){S.down.add(c.id);flipped++} });
-  logLine("You",q.t,ans,$("auto").checked?`(${flipped} flipped)`:"");
-  const next=[...$("q").options].find(o=>!S.asked.has(+o.value)); if(next)$("q").value=next.value;
-  S.turn="cpu"; render(); setTimeout(cpuTurn,1100);
+  if($("auto").checked) S.cast.forEach(c=>{ if(!P.down.has(c.id)&&q.f(c)!==ans){P.down.add(c.id);flipped++} });
+  logLine(P.name,q.t,ans,$("auto").checked?`(${flipped} flipped)`:"");
+  const next=[...$("q").options].find(o=>!P.asked.has(+o.value)); if(next)$("q").value=next.value;
+  if(S.mode==="cpu"){S.cur=1;render();setTimeout(cpuTurn,1100)}
+  else{S.acted=true;render()}
+}
+
+function endTurn(){
+  if(S.mode!=="pvp"||!S.acted)return;
+  const n=1-S.cur; handoff(n,"play",`Pass to ${S.players[n].name}`,`${S.players[n].name}, it's your turn.`);
 }
 
 function cpuTurn(){
-  if(S.turn!=="cpu")return;
-  if(S.cpuC.length===1){ const g=S.cast[S.cpuC[0]]; logLine("CPU",`Is it ${g.name}?`,true); return end(false,`The CPU guessed <b>${g.name}</b>.`); }
+  if(S.phase!=="play"||S.cur!==1)return;
+  const me=S.players[0].secret;
+  if(S.cpuC.length===1){ const g=S.cast[S.cpuC[0]]; logLine("CPU",`Is it ${g.name}?`,true); return end(1,`The CPU guessed <b>${g.name}</b>.`); }
   const useful=Q.map((q,i)=>({i,y:S.cpuC.filter(id=>q.f(S.cast[id])).length}))
     .filter(o=>!S.cpuAsked.has(o.i)&&o.y>0&&o.y<S.cpuC.length);
   const best=useful.slice().sort((a,b)=>Math.abs(a.y*2-S.cpuC.length)-Math.abs(b.y*2-S.cpuC.length)||rnd()-.5)[0];
   const d=$("diff").value, smart=d==="hard"?1:d==="normal"?.55:0;
   const choice=rnd()<smart?best:pick(useful);
-  const q=Q[choice.i], ans=q.f(S.cast[S.me]); S.cpuAsked.add(choice.i);
+  const q=Q[choice.i], ans=q.f(S.cast[me]); S.cpuAsked.add(choice.i);
   const before=S.cpuC.length; S.cpuC=S.cpuC.filter(id=>q.f(S.cast[id])===ans);
   logLine("CPU",q.t,ans,`(${before-S.cpuC.length} flipped)`);
-  S.turn="player"; render();
+  S.cur=0; render();
 }
 
-function end(win,msg){
-  S.turn="over"; S.guess=false; render();
-  $("mTitle").textContent=win?"You win!":"You lose";
+function end(winner,msg){
+  S.phase="over"; S.guess=false; S.pending=null; render();
+  const W=S.players[winner];
+  $("mTitle").textContent=S.mode==="cpu"?(winner===0?"You win!":"You lose"):`${W.name} wins!`.replace(/&amp;/g,"&");
   $("mText").innerHTML=msg;
-  const cpu=S.cast[S.cpu], me=S.cast[S.me];
-  $("mReveal").innerHTML=`<div><div class="mini">${faceSVG(cpu)}</div><p>CPU had <b>${cpu.name}</b></p></div><div><div class="mini">${faceSVG(me)}</div><p>You had <b>${me.name}</b></p></div>`;
+  $("mReveal").innerHTML=S.players.map(P=>{const c=S.cast[P.secret];return `<div><div class="mini">${faceSVG(c)}</div><p>${P.name==="You"?"You":P.name} had <b>${c.name}</b></p></div>`}).join("");
   setTimeout(()=>{$("modal").hidden=false;$("againBtn").focus()},500);
 }
 
+function confirmGuess(){
+  const P=S.players[S.cur], O=S.players[1-S.cur], g=S.cast[S.pending]; S.pending=null;
+  const right=g.id===O.secret;
+  logLine(P.name,`Is it ${g.name}?`,right);
+  if(right) end(S.cur,`${S.mode==="cpu"?"You":P.name} found <b>${g.name}</b>.`);
+  else end(1-S.cur,`It wasn't ${g.name}. A wrong guess ends the game.`);
+}
+
 function render(){
-  S.cast.forEach(c=>{const el=$("card-"+c.id); el.classList.toggle("down",S.down.has(c.id)); el.classList.toggle("pending",S.pending===c.id);});
+  if(!S)return;
+  const V=S.players[viewer()], O=S.players[1-viewer()], picking=S.phase==="pick";
+  S.cast.forEach(c=>{const el=$("card-"+c.id); el.classList.toggle("down",!picking&&V.down.has(c.id)); el.classList.toggle("pending",S.pending===c.id);});
   $("board").classList.toggle("guessing",S.guess);
-  const myLeft=24-S.down.size;
-  $("myN").textContent=myLeft; $("cpuN").textContent=S.cpuC.length;
-  $("myDots").innerHTML=Array.from({length:24},(_,i)=>`<i class="${i<myLeft?"on":""}"></i>`).join("");
-  $("cpuDots").innerHTML=Array.from({length:24},(_,i)=>`<i class="${i<S.cpuC.length?"on":""}"></i>`).join("");
-  [...$("q").options].forEach(o=>{const i=+o.value; if(S.asked.has(i)){o.disabled=true;o.textContent=`${Q[i].t} (${S.asked.get(i)?"Yes":"No"})`} });
-  const mine=S.turn==="player";
-  $("askBtn").disabled=!mine||S.guess||S.asked.has(+$("q").value); $("guessBtn").disabled=!mine; $("q").disabled=!mine||S.guess;
-  $("askBox").hidden=false; $("confirm").hidden=!S.guess;
+  $("board").classList.toggle("picking",picking);
+
+  $("pickBox").hidden=!picking;
+  const pp=S.pending!=null?S.cast[S.pending]:null;
+  $("pickLabel").textContent=S.mode==="pvp"?`${S.players[S.cur].name}: choose your secret person`.replace(/&amp;/g,"&"):"Choose your secret person";
+  $("pickText").innerHTML=pp?`You picked <b>${pp.name}</b>. Lock it in, or tap a different face.`:"Tap a face on the board. The other side will try to guess it.";
+  $("pickBtn").disabled=!pp;
+
+  $("mineBox").hidden=picking||V.secret==null;
+  if(V.secret!=null){const m=S.cast[V.secret];
+    $("mineLabel").textContent=S.mode==="pvp"?`${V.name}'s secret person`.replace(/&amp;/g,"&"):"Your secret person";
+    $("mine").innerHTML=`<div class="mini">${faceSVG(m)}</div><div><b>${m.name}</b><small>${O.name==="CPU"?"The CPU":O.name} is trying to find this person. Keep it secret.</small></div>`;}
+
+  $("counts").hidden=picking;
+  const vLeft=24-V.down.size, oLeft=S.mode==="cpu"?S.cpuC.length:24-O.down.size;
+  $("aLabel").innerHTML=S.mode==="cpu"?"You have left":`${V.name} has left`;
+  $("bLabel").innerHTML=S.mode==="cpu"?"CPU has left":`${O.name} has left`;
+  $("myN").textContent=vLeft; $("cpuN").textContent=oLeft;
+  $("myDots").innerHTML=Array.from({length:24},(_,i)=>`<i class="${i<vLeft?"on":""}"></i>`).join("");
+  $("cpuDots").innerHTML=Array.from({length:24},(_,i)=>`<i class="${i<oLeft?"on":""}"></i>`).join("");
+
+  [...$("q").options].forEach(o=>{const i=+o.value, a=V.asked.get(i);
+    o.disabled=a!==undefined; o.textContent=a===undefined?Q[i].t:`${Q[i].t} (${a?"Yes":"No"})`;});
+  if(V.asked.has(+$("q").value)){const f=[...$("q").options].find(o=>!o.disabled); if(f)$("q").value=f.value}
+
+  const mine=myTurn();
+  $("askBox").hidden=picking;
+  $("askBtn").disabled=!mine||S.guess||S.acted||V.asked.has(+$("q").value);
+  $("q").disabled=!mine||S.guess||S.acted;
+  $("guessBtn").disabled=!mine||S.guess;
+  $("endBtn").hidden=S.mode!=="pvp"; $("endBtn").disabled=!mine||!S.acted||S.guess;
+  $("confirm").hidden=!S.guess;
   $("guessBtn").textContent=S.guess?"Guessing…":"Make a guess";
-  const p=S.pending!=null?S.cast[S.pending]:null;
+  const p=S.guess&&S.pending!=null?S.cast[S.pending]:null;
   $("confirmText").innerHTML=p?`Guess <b>${p.name}</b>? A wrong guess loses the game.`:"Tap a face on the board to guess it.";
   $("confirmBtn").disabled=!p;
-  const st=$("status");
-  st.classList.toggle("you",mine);
-  st.textContent=S.turn==="over"?"Game over":S.turn==="cpu"?"CPU is thinking…":S.guess?"Pick your guess":myLeft===1?"One left. Make your guess!":"Your turn";
+  $("diffWrap").hidden=S.mode!=="cpu";
+
+  const st=$("status"); st.classList.toggle("you",mine||picking);
+  const who=S.players[S.cur].name;
+  st.innerHTML=S.phase==="over"?"Game over":S.phase==="handoff"?"Pass the device":picking?(S.mode==="pvp"?`${who}: pick a person`:"Pick your person")
+    :S.mode==="cpu"?(S.cur===1?"CPU is thinking…":S.guess?"Pick your guess":vLeft===1?"One left. Make your guess!":"Your turn")
+    :S.guess?`${who}: pick your guess`:S.acted?`${who}: end your turn`:`${who}'s turn`;
 }
 
 $("askBtn").onclick=ask;
+$("endBtn").onclick=endTurn;
 $("q").onchange=render;
+$("pickBtn").onclick=lockPick;
+$("randBtn").onclick=()=>{S.pending=pick(S.cast).id;render()};
 $("guessBtn").onclick=()=>{S.guess=true;S.pending=null;render()};
 $("cancelBtn").onclick=()=>{S.guess=false;S.pending=null;render()};
-$("confirmBtn").onclick=()=>{
-  const g=S.cast[S.pending]; S.pending=null;
-  if(g.id===S.cpu){logLine("You",`Is it ${g.name}?`,true); end(true,`You found <b>${g.name}</b>.`)}
-  else{logLine("You",`Is it ${g.name}?`,false); end(false,`It wasn't ${g.name}. A wrong guess ends the game.`)}
-};
-$("newBtn").onclick=newGame; $("againBtn").onclick=newGame;
-newGame();
+$("confirmBtn").onclick=confirmGuess;
+$("cpuMode").onclick=()=>setup("cpu");
+$("pvpMode").onclick=()=>setup("pvp");
+const showStart=()=>{$("modal").hidden=true;$("handoff").hidden=true;$("start").hidden=false;$("cpuMode").focus()};
+$("newBtn").onclick=showStart; $("againBtn").onclick=showStart;
+// Show a sample board behind the start screen.
+S={mode:"cpu",cast:makeCast(),cur:0,phase:"pick",acted:false,guess:false,pending:null,players:[player("You"),player("CPU")],cpuC:[],cpuAsked:new Set()};
+buildBoard(); buildSelect(); render(); $("status").textContent="Pick a mode";
 </script>
