@@ -183,6 +183,7 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);b
     </div>
     <div class="online">
       <div class="label">Play online on two phones</div>
+      <p style="font-size:.85rem">One person taps <b>Create</b>. The other types the code and taps <b>Join</b>.</p>
       <button class="btn primary" id="createBtn" disabled>Create online game</button>
       <div class="row">
         <input id="joinCode" maxlength="4" placeholder="CODE" aria-label="Game code" autocomplete="off">
@@ -415,7 +416,9 @@ const LETTERS="ABCDEFGHJKLMNPQRSTUVWXYZ";
 const newCode=()=>Array.from({length:4},()=>pick(LETTERS.split(""))).join("");
 const gid=()=>Math.random().toString(36).slice(2,10);
 const myName=()=>($("p1name").value.trim()||"Player").slice(0,14);
-const blankPlayer=(uid,name)=>({uid,name,secret:null,down:[],asked:{}});
+const blankPlayer=(uid,name,dev)=>({uid,name,dev,secret:null,down:[],asked:{}});
+// Each phone gets its own id, so two phones signed into the same account still count as two players.
+const DEV=store.get("fh-dev")||(()=>{const d="d"+Math.random().toString(36).slice(2,12);store.set("fh-dev",d);return d})();
 
 function netMsg(t){ $("netMsg").textContent=t||""; $("netMsg").hidden=!t; }
 async function netWrite(fn){
@@ -444,7 +447,7 @@ async function createOnline(){
   $("startMsg").textContent="Creating…";
   try{
     await gdoc().set({gid:gid(),cast:makeCast(),cur:0,log:[],winner:null,msg:"",round:1});
-    await pdoc(0).set(blankPlayer(NET.uid,myName()));
+    await pdoc(0).set(blankPlayer(NET.uid,myName(),DEV));
     startOnline(code,0);
   }catch(e){ $("startMsg").textContent="Couldn't create a game. Try again."; }
 }
@@ -458,10 +461,12 @@ async function joinOnline(){
     if(!m.exists){ $("startMsg").textContent=`No game with code ${code}.`; return; }
     const [a,b]=await Promise.all([pdoc(0).get(),pdoc(1).get()]);
     let me;
-    if(a.exists&&a.data().uid===NET.uid) me=0;
-    else if(b.exists&&b.data().uid===NET.uid) me=1;
-    else if(b.exists){ $("startMsg").textContent="That game already has two players."; return; }
-    else { await pdoc(1).set(blankPlayer(NET.uid,myName())); me=1; }
+    const A=a.exists?a.data():null, B=b.exists?b.data():null;
+    if(A&&A.dev===DEV) me=0;                       // this phone created the game
+    else if(B&&B.dev===DEV) me=1;                  // this phone already joined
+    else if(!B){ await pdoc(1).set(blankPlayer(NET.uid,myName(),DEV)); me=1; }  // free seat: take it
+    else if(A&&!A.dev&&A.uid===NET.uid) me=0;      // game from before phones had ids
+    else { $("startMsg").textContent="That game already has two players. Create a new one."; return; }
     startOnline(code,me);
   }catch(e){ $("startMsg").textContent=e&&e.code==="invalid_argument"?"You can't join yet. Ask the owner to share this page with you as an Editor.":"Couldn't join. Try again."; }
 }
@@ -541,7 +546,7 @@ function guessOnline(g,right){
 function rematch(){
   const M=NET.main, round=(M.round||1)+1;
   netWrite(async()=>{
-    for(const i of [0,1]){ const d=NET.p[i]; if(d) await pdoc(i).set(blankPlayer(d.uid,d.name)); }
+    for(const i of [0,1]){ const d=NET.p[i]; if(d) await pdoc(i).set(blankPlayer(d.uid,d.name,d.dev||null)); }
     await gdoc().set({gid:gid(),cast:makeCast(),cur:(round-1)%2,log:[],winner:null,msg:"",round});
   });
 }
